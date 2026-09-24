@@ -48,14 +48,17 @@ export function startedFromAddin(): boolean {
 }
 
 export async function initOffice(): Promise<void> {
+  if (!window.Office) await loadOfficeJs();
+  const info = await window.Office!.onReady();
+  if (info.host !== 'PowerPoint') return;
+  // Only remember this once PowerPoint is confirmed, so /addin opened in a normal
+  // browser tab doesn't make every later page try to load Office.js.
   try {
     sessionStorage.setItem(SESSION_KEY, '1');
   } catch {
-    // ignore
+    // storage blocked: the add-in still works on this page
   }
-  if (!window.Office) await loadOfficeJs();
-  const info = await window.Office!.onReady();
-  if (info.host === 'PowerPoint') setHost('PowerPoint');
+  setHost('PowerPoint');
 }
 
 async function loadOfficeJs(): Promise<void> {

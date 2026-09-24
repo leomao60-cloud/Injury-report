@@ -12,6 +12,7 @@ import {
   callsPerPanel,
 } from './layout';
 import { resolveSheet, wristbandCalls } from './resolve';
+import { NumberField } from './NumberField';
 import { SheetPages } from './SheetPages';
 import type { Orientation, PerPage, SheetDoc, SheetKind } from './types';
 import styles from './SheetsScreen.module.css';
@@ -249,18 +250,13 @@ export function SheetsScreen() {
               ).map(([key, label, min, max, step]) => (
                 <label key={key} className={styles.label}>
                   {label}
-                  <input
-                    className="input"
-                    type="number"
+                  <NumberField
                     min={min}
                     max={max}
                     step={step}
+                    integer={step === 1}
                     value={sheet.wristband[key]}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (Number.isFinite(v) && v >= min && v <= max)
-                        patch({ wristband: { ...sheet.wristband, [key]: v } });
-                    }}
+                    onChange={(v) => patch({ wristband: { ...sheet.wristband, [key]: v } })}
                   />
                 </label>
               ))}
@@ -281,16 +277,12 @@ export function SheetsScreen() {
           <div className={styles.grid2}>
             <label className={styles.label}>
               Start at
-              <input
-                className="input"
-                type="number"
+              <NumberField
                 min={0}
                 max={9999}
+                integer
                 value={sheet.startNumber}
-                onChange={(e) => {
-                  const v = Math.floor(Number(e.target.value));
-                  if (Number.isFinite(v) && v >= 0 && v <= 9999) patch({ startNumber: v });
-                }}
+                onChange={(startNumber) => patch({ startNumber })}
               />
             </label>
             <label className={styles.label}>
