@@ -1,0 +1,85 @@
+.page {
+  position: relative;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  flex: none;
+  overflow: hidden;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+.pageHeader {
+  position: absolute;
+  left: 0.4in;
+  right: 0.4in;
+  top: 0.4in;
+  height: 0.3in;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 0.13in;
+  color: #444;
+}
+
+.cell {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: 0.01in solid #999;
+}
+
+.cellTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.08in;
+  padding: 0.04in 0.08in;
+  border-bottom: 0.01in solid #999;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.number {
+  font-weight: 800;
+  min-width: 1.4em;
+}
+.playName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diagram {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: block;
+}
+
+.panel {
+  position: absolute;
+  display: grid;
+  border: 0.015in dashed #555;
+  padding: 0.04in;
+  column-gap: 0.08in;
+}
+.call {
+  display: flex;
+  align-items: center;
+  gap: 0.06in;
+  border-bottom: 0.008in solid #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1;
+}
+.call b {
+  min-width: 1.5em;
+  text-align: right;
+}
+.call span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

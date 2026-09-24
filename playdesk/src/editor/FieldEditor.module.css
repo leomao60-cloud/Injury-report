@@ -1,0 +1,70 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+}
+
+.fieldFrame {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+/* Keep the field's shape (viewBox is 55.33 x 30 yards) and fit it to the space available. */
+.svg {
+  --field-aspect: 1.8444;
+  display: block;
+  aspect-ratio: 55.333 / 30;
+  width: min(100%, calc((100dvh - var(--header-h) - 80px) * var(--field-aspect)));
+  height: auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.svg[data-tool='move'] :global(.pd-player) {
+  cursor: grab;
+}
+.svg[data-tool='move'] :global(.pd-line),
+.svg[data-tool='erase'] :global(.pd-line),
+.svg[data-tool='erase'] :global(.pd-player) {
+  cursor: pointer;
+}
+.svg[data-tool='route'],
+.svg[data-tool='block'],
+.svg[data-tool='motion'] {
+  cursor: crosshair;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  min-height: 20px;
+}
+
+.hint,
+.readout {
+  margin: 0;
+  font-size: 13px;
+}
+.hint {
+  color: var(--text-2);
+}
+.readout {
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .svg {
+    width: 100%;
+  }
+}
