@@ -8,7 +8,8 @@ and print call sheets and QB wristbands. Built from `BUILD_PLAN.md`.
 ## Stack
 
 Vite + React 18 + TypeScript (strict), Zustand, CSS Modules, Vitest, Playwright, ESLint + Prettier.
-Runtime libraries: `idb` (IndexedDB), `jspdf` + `svg2pdf.js` (vector PDF), `pptxgenjs` (PowerPoint).
+Runtime libraries: `idb` (IndexedDB), `jspdf` + `svg2pdf.js` (vector PDF), `pptxgenjs` (PowerPoint),
+`jszip` (Visio .vsdx packages; already a pptxgenjs dependency).
 Export libraries are loaded on demand (dynamic `import()`), so they don't slow down the editor.
 
 ## Scripts
@@ -22,6 +23,7 @@ Export libraries are loaded on demand (dynamic `import()`), so they don't slow d
 | `npm run lint`      | ESLint                                                          |
 | `npm run format`    | Prettier                                                        |
 | `npm run build`     | Production build into `dist/`                                   |
+| `npm run manifest`  | Write the PowerPoint add-in manifest (set `PLAYDESK_URL` first) |
 
 Finish every change by running typecheck, test and lint.
 
@@ -33,11 +35,13 @@ src/
   render/    pure SVG components: Field, PlayerMarker, PlayLineView, PlayDiagram
   store/     Zustand stores: playStore (play + undo history), editorStore (tool, selection, draft)
   editor/    the editor screen: FieldEditor (pointer input), ToolRail, SidePanel, drawing logic, shortcuts
-  library/   IndexedDB library, search, backup import/export + validation, autosave
+  library/   IndexedDB library, search, backup + .playdesk file import/export, validation, autosave, team branding
   sheets/    call sheets and wristbands: page layout math, numbering, print preview
-  export/    PNG, PDF and PowerPoint export
+  export/    PNG, PDF, PowerPoint and Visio (.vsdx) export
+  office/    PowerPoint add-in: loads Office.js only on /addin, inserts slides
   app/       App shell, header, router, landing page
   styles/    tokens.css (light + dark themes), global.css
+scripts/     make-manifest.mjs writes the PowerPoint add-in manifest
 e2e/         Playwright tests
 docs/        notes (usability review)
 ```
@@ -71,9 +75,12 @@ Hash widths: HS 53′4″, college 40′, NFL 18′6″.
 - Layout must work at 400px wide (one column under 720px) and in dark mode.
   Every control needs a visible focus state and an accessible name.
 - Ask before adding a new npm dependency.
+- Branding (`library/branding.ts`) is applied at output time: sheet preview, PDF, PowerPoint and Visio all take it
+  as a parameter. Diagram fonts must stay PDF-safe (`DIAGRAM_FONT`, bold = 700).
 
 ## Legal guardrails
 
 - Sheets, wristbands and exports are **generated from play data** (`PlayDiagram`, `diagramShapes`).
-  Never build them by pasting drawings or screenshots into template boxes.
+  Never build them by pasting drawings or screenshots into template boxes, and don't add a feature that
+  inserts diagrams into user-supplied templates and auto-resizes them to fit without a patent attorney's review.
 - Before charging money, have a patent attorney review the sheets and export features.

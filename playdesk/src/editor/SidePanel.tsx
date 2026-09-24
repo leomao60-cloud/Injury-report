@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   FORMATIONS,
   HASH_WIDTH_NOTE,
@@ -25,10 +25,15 @@ import {
   type DefenseId,
 } from '../model';
 import { SaveControls } from '../library/SaveControls';
+import { offenseFill } from '../library/branding';
+import { useLibraryStore } from '../library/libraryStore';
+import { PLAY_FILE_EXT, parsePlayFile, readJsonFile, serializePlayFile } from '../library/playFile';
+import { downloadBlob, safeFilename } from '../export/download';
+import { useOfficeHost } from '../office/office';
 import { useEditorStore } from '../store/editorStore';
 import { usePlay, usePlayStore } from '../store/playStore';
 import { canRedo, canUndo } from '../store/history';
-import { dropStaleSelection, finishLine, redo, undo } from './actions';
+import { cancelLine, dropStaleSelection, finishLine, redo, undo } from './actions';
 import styles from './SidePanel.module.css';
 
 const COLOR_SWATCHES = [
@@ -255,44 +260,141 @@ function SelectionSection() {
 function ExportSection() {
   const play = usePlay();
   const fieldStyle = useEditorStore((s) => s.fieldStyle);
+  const branding = useLibraryStore((s) => s.branding);
+  const inPowerPoint = useOfficeHost() === 'PowerPoint';
   const [busy, setBusy] = useState(false);
-  const run = async (fn: () => Promise<void>) => {
+  const [message, setMessage] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const run = async (fn: () => Promise<void>, done?: string) => {
     setBusy(true);
+    setMessage(null);
     try {
       await fn();
+      if (done) setMessage(done);
     } catch (e) {
       console.error(e);
-      window.alert('Sorry, the export failed. Please try again.');
+      setMessage(
+        e instanceof Error && e.message ? e.message : 'Sorry, that did not work. Please try again.',
+      );
     } finally {
       setBusy(false);
     }
   };
   return (
-    <Section title="Export">
+    <Section title="Files & export">
+      {inPowerPoint && (
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={busy}
+          onClick={() =>
+            void run(
+              async () =>
+                (await import('../office/insert')).insertPlayIntoPowerPoint(
+                  play,
+                  fieldStyle,
+                  branding,
+                ),
+              'Inserted as a new slide.',
+            )
+          }
+          data-testid="insert-powerpoint"
+        >
+          Insert into PowerPoint
+        </button>
+      )}
+      <div className={styles.row}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() =>
+            downloadBlob(
+              new Blob([serializePlayFile(play)], { type: 'application/json' }),
+              safeFilename(play.name, PLAY_FILE_EXT),
+            )
+          }
+          data-testid="save-play-file"
+        >
+          Save to file
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()}>
+          Open file…
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".playdesk,application/json,.json"
+          hidden
+          data-testid="open-play-file"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            void run(async () => {
+              const opened = parsePlayFile(await readJsonFile(f));
+              cancelLine();
+              useEditorStore.getState().select(null);
+              usePlayStore.getState().load(opened);
+            }, 'Play opened.');
+          }}
+        />
+      </div>
       <div className={styles.row}>
         <button
           type="button"
           className="btn btn-sm"
           disabled={busy}
           onClick={() =>
-            void run(async () => (await import('../export/png')).exportPlayPng(play, fieldStyle))
+            void run(async () =>
+              (await import('../export/pptx')).exportPlayPptx(play, fieldStyle, branding),
+            )
           }
         >
-          PNG image
+          PowerPoint
         </button>
         <button
           type="button"
           className="btn btn-sm"
           disabled={busy}
           onClick={() =>
-            void run(async () => (await import('../export/pptx')).exportPlayPptx(play, fieldStyle))
+            void run(async () =>
+              (await import('../export/vsdx')).exportVsdx(
+                play.name,
+                [{ name: play.name, play }],
+                fieldStyle,
+                branding,
+              ),
+            )
+          }
+          data-testid="export-visio"
+        >
+          Visio
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={() =>
+            void run(async () =>
+              (await import('../export/png')).exportPlayPng(
+                play,
+                fieldStyle,
+                offenseFill(branding),
+              ),
+            )
           }
         >
-          PowerPoint
+          PNG image
         </button>
       </div>
+      {message && (
+        <p className="small" role="status">
+          {message}
+        </p>
+      )}
       <p className="small muted">
-        Uses the current field style. For PDFs of several plays, use Sheets.
+        Files are saved to your own computer: .playdesk files open again in Playdesk; PowerPoint
+        (.pptx) and Visio (.vsdx) files have players and routes as shapes you can edit.
       </p>
     </Section>
   );

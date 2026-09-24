@@ -9,6 +9,8 @@ export interface PlayDiagramOptions {
   style?: FieldStyle;
   window?: ViewWindow;
   numbers?: boolean;
+  /** Fill for offensive players without their own color, e.g. the team color. */
+  offenseFill?: string;
 }
 
 export interface PlayDiagramProps extends PlayDiagramOptions {
@@ -29,6 +31,7 @@ export function PlayDiagram({
   style = 'whiteboard',
   window = DEFAULT_WINDOW,
   numbers = true,
+  offenseFill,
   title,
   className,
   svgProps,
@@ -62,7 +65,7 @@ export function PlayDiagram({
       {children}
       <g>
         {play.players.map((p) => (
-          <PlayerMarker key={p.id} player={p} style={style} />
+          <PlayerMarker key={p.id} player={p} style={style} defaultFill={offenseFill} />
         ))}
       </g>
     </svg>

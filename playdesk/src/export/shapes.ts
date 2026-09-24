@@ -64,6 +64,7 @@ export type Shape =
       color: string;
       fontSize: number;
       bold?: boolean;
+      align?: 'left' | 'center';
       name?: string;
     };
 
@@ -96,6 +97,7 @@ export function diagramShapes(
   style: FieldStyle,
   window: ViewWindow,
   box: Rect,
+  offenseFill?: string,
 ): Shape[] {
   const c = DIAGRAM_COLORS[style];
   const vb = viewBoxFor(window);
@@ -235,7 +237,7 @@ export function diagramShapes(
       });
       continue;
     }
-    const fill = solidHex(p.color ?? c.playerFill);
+    const fill = solidHex(p.color ?? offenseFill ?? c.playerFill);
     const common = {
       x: X(p.x) - r,
       y: Y(p.y) - r,

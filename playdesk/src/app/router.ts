@@ -1,13 +1,15 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 /** Tiny history-API router: '/', '/app', '/app/library', '/app/sheets'. */
-export type Route = 'landing' | 'editor' | 'library' | 'sheets';
+export type Route = 'landing' | 'editor' | 'library' | 'sheets' | 'team' | 'addin';
 
 export const ROUTE_PATHS: Record<Route, string> = {
   landing: '/',
   editor: '/app',
   library: '/app/library',
   sheets: '/app/sheets',
+  team: '/app/team',
+  addin: '/addin',
 };
 
 const ROUTE_TITLES: Record<Route, string> = {
@@ -15,6 +17,8 @@ const ROUTE_TITLES: Record<Route, string> = {
   editor: 'Editor · Playdesk',
   library: 'Play library · Playdesk',
   sheets: 'Sheets · Playdesk',
+  team: 'Team branding · Playdesk',
+  addin: 'Playdesk for PowerPoint',
 };
 
 export function routeFromPath(path: string): Route {

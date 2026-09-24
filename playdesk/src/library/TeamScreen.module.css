@@ -1,0 +1,85 @@
+.screen {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 24px;
+  padding: 20px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.form p {
+  margin: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.colors {
+  display: flex;
+  gap: 16px;
+}
+.color {
+  width: 64px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.logo {
+  height: 48px;
+  max-width: 140px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.preview {
+  min-width: 0;
+  overflow-x: auto;
+}
+.preview h2 {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.previewPage {
+  zoom: 0.55;
+}
+
+@media (max-width: 720px) {
+  .screen {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .previewPage {
+    zoom: 0.4;
+  }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLibraryStore } from '../library/libraryStore';
 import { usePlay } from '../store/playStore';
+import { useOfficeHost } from '../office/office';
 import { filterPlays } from '../library/search';
 import {
   formatNumberList,
@@ -52,8 +53,9 @@ function Seg<T extends string | number>({
 }
 
 export function SheetsScreen() {
-  const { plays, folders, sheets, saveSheet, removeSheet, save } = useLibraryStore();
+  const { plays, folders, sheets, saveSheet, removeSheet, save, branding } = useLibraryStore();
   const editorPlay = usePlay();
+  const inPowerPoint = useOfficeHost() === 'PowerPoint';
   const editorSaved = plays.find((p) => p.id === editorPlay.id);
   const editorUnsaved =
     !editorSaved || JSON.stringify(editorSaved.play) !== JSON.stringify(editorPlay);
@@ -97,15 +99,34 @@ export function SheetsScreen() {
     return () => style.remove();
   }, [sheet.kind, sheet.orientation]);
 
-  async function runExport(kind: 'pdf' | 'pptx' | 'slides') {
-    setBusy(kind === 'pdf' ? 'Making PDF…' : 'Making PowerPoint…');
+  async function runExport(kind: 'pdf' | 'pptx' | 'slides' | 'visio' | 'insert') {
+    setBusy(
+      kind === 'pdf'
+        ? 'Making PDF…'
+        : kind === 'visio'
+          ? 'Making Visio file…'
+          : kind === 'insert'
+            ? 'Inserting slides…'
+            : 'Making PowerPoint…',
+    );
     try {
-      if (kind === 'pdf') {
+      if (kind === 'insert') {
+        const { insertPlaysIntoPowerPoint } = await import('../office/insert');
+        await insertPlaysIntoPowerPoint(calls, 'whiteboard', branding);
+      } else if (kind === 'visio') {
+        const { exportVsdx } = await import('../export/vsdx');
+        await exportVsdx(
+          sheet.name,
+          calls.map((c) => ({ name: c.play.name, play: c.play, number: c.number })),
+          'whiteboard',
+          branding,
+        );
+      } else if (kind === 'pdf') {
         const { exportSheetPdf } = await import('../export/pdf');
-        await exportSheetPdf(sheet, calls);
+        await exportSheetPdf(sheet, calls, branding);
       } else {
         const { exportSheetPptx } = await import('../export/pptx');
-        await exportSheetPptx(sheet, calls, kind === 'slides' ? 'slides' : 'sheet');
+        await exportSheetPptx(sheet, calls, kind === 'slides' ? 'slides' : 'sheet', branding);
       }
     } catch (e) {
       console.error(e);
@@ -473,6 +494,24 @@ export function SheetsScreen() {
               PowerPoint (one play per slide)
             </button>
           )}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void runExport('visio')}
+            disabled={calls.length === 0 || busy !== null}
+          >
+            Visio (one play per page)
+          </button>
+          {inPowerPoint && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void runExport('insert')}
+              disabled={calls.length === 0 || busy !== null}
+            >
+              Insert into PowerPoint
+            </button>
+          )}
           {busy && <span className="small muted">{busy}</span>}
           <label className={styles.zoom}>
             <span className="small muted">Zoom</span>
@@ -495,7 +534,7 @@ export function SheetsScreen() {
           className={`${styles.pages} print-root`}
           style={{ '--zoom': zoom, '--page-w': `${page.w}in` } as CSSProperties}
         >
-          <SheetPages sheet={sheet} calls={calls} />
+          <SheetPages sheet={sheet} calls={calls} branding={branding} />
         </div>
       </main>
     </div>

@@ -4,9 +4,14 @@ import { downloadBlob, safeFilename } from './download';
 import { aspect, playSvgMarkup } from './svg';
 
 /** PNG of a single play, 2400 px wide. */
-export async function exportPlayPng(play: Play, style: FieldStyle, width = 2400): Promise<void> {
+export async function exportPlayPng(
+  play: Play,
+  style: FieldStyle,
+  offenseFill?: string,
+  width = 2400,
+): Promise<void> {
   const height = Math.round(width / aspect(DEFAULT_WINDOW));
-  const markup = playSvgMarkup(play, style, DEFAULT_WINDOW).replace(
+  const markup = playSvgMarkup(play, style, DEFAULT_WINDOW, true, offenseFill).replace(
     '<svg ',
     `<svg width="${width}" height="${height}" `,
   );

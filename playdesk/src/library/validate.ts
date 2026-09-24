@@ -1,5 +1,6 @@
 import { DEFENSES, FORMATIONS, type Play, type Player, type PlayLine, type Point } from '../model';
 import { DEFAULT_WRISTBAND, type SheetDoc } from '../sheets/types';
+import { sanitizeBranding } from './branding';
 import type { LibraryBackup, SavedPlay } from './types';
 
 /**
@@ -155,6 +156,7 @@ export function validateBackup(v: unknown): LibraryBackup {
         .map((f) => str(f, 40))
         .filter(Boolean),
       sheets: arr(v.sheets ?? [], 1000).map(sheet),
+      ...(v.branding === undefined ? {} : { branding: sanitizeBranding(v.branding) }),
     };
   } catch (e) {
     if (e instanceof BackupError)

@@ -8,6 +8,8 @@ export interface PlayerMarkerProps {
   selected?: boolean;
   /** Adds a larger invisible touch target (editor only). */
   interactive?: boolean;
+  /** Offense fill when the player has no color of his own (team color). */
+  defaultFill?: string;
   onPointerDown?: (e: PointerEvent<SVGGElement>, player: Player) => void;
 }
 
@@ -17,6 +19,7 @@ export const PlayerMarker = memo(function PlayerMarker({
   style,
   selected,
   interactive,
+  defaultFill,
   onPointerDown,
 }: PlayerMarkerProps) {
   const c = DIAGRAM_COLORS[style];
@@ -46,7 +49,7 @@ export const PlayerMarker = memo(function PlayerMarker({
           y={y}
           fill={player.color ?? c.defense}
           fontSize={player.label.length > 1 ? 1.25 : 1.6}
-          fontWeight={800}
+          fontWeight={700}
           fontFamily={DIAGRAM_FONT}
           textAnchor="middle"
           dominantBaseline="central"
@@ -57,7 +60,7 @@ export const PlayerMarker = memo(function PlayerMarker({
     );
   }
 
-  const fill = player.color ?? c.playerFill;
+  const fill = player.color ?? defaultFill ?? c.playerFill;
   const text = readableText(fill, c.playerText);
   return (
     <g {...common}>
