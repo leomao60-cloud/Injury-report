@@ -11,6 +11,13 @@ import {
 } from '../sheets/layout';
 import { wristbandCalls, type NumberedPlay } from '../sheets/resolve';
 import type { SheetDoc } from '../sheets/types';
+import {
+  BRAND_FONTS,
+  DEFAULT_BRANDING,
+  offenseFill,
+  textOn,
+  type Branding,
+} from '../library/branding';
 import { downloadBlob, safeFilename } from './download';
 import { diagramShapes, type Shape } from './shapes';
 
@@ -24,8 +31,9 @@ function addDiagram(
   style: FieldStyle,
   window: ViewWindow,
   box: Rect,
+  fill?: string,
 ) {
-  for (const s of diagramShapes(play, style, window, box)) addShape(pptx, slide, s);
+  for (const s of diagramShapes(play, style, window, box, fill)) addShape(pptx, slide, s);
 }
 
 function addShape(pptx: PptxGenJS, slide: Slide, s: Shape) {
@@ -95,7 +103,7 @@ function addShape(pptx: PptxGenJS, slide: Slide, s: Shape) {
   }
 }
 
-function newDeck(orientation: 'landscape' | 'portrait' | 'wide') {
+function newDeck(orientation: 'landscape' | 'portrait' | 'wide', branding: Branding) {
   const pptx = new PptxGenJS();
   if (orientation === 'wide') {
     pptx.layout = 'LAYOUT_WIDE';
@@ -104,7 +112,12 @@ function newDeck(orientation: 'landscape' | 'portrait' | 'wide') {
     pptx.defineLayout({ name: `LETTER_${orientation}`, width: page.w, height: page.h });
     pptx.layout = `LETTER_${orientation}`;
   }
-  pptx.author = 'Playdesk';
+  pptx.author = branding.teamName || 'Playdesk';
+  if (branding.teamName) pptx.company = branding.teamName;
+  pptx.theme = {
+    headFontFace: BRAND_FONTS[branding.font].office,
+    bodyFontFace: BRAND_FONTS[branding.font].office,
+  };
   return pptx;
 }
 
@@ -113,15 +126,109 @@ async function save(pptx: PptxGenJS, name: string) {
   downloadBlob(blob, safeFilename(name, 'pptx'));
 }
 
-function titleText(slide: Slide, text: string, r: Rect, fontSize: number) {
+const hex = (c: string) => c.replace('#', '');
+
+/** Logo, team name and title across the top of a slide, over a team-colored rule. */
+function slideHeader(
+  pptx: PptxGenJS,
+  slide: Slide,
+  branding: Branding,
+  title: string,
+  right: string,
+  width: number,
+) {
+  const face = BRAND_FONTS[branding.font].office;
+  const top = 0.3;
+  const h = 0.38;
+  let x = PAGE_MARGIN;
+  if (branding.logo) {
+    slide.addImage({
+      data: branding.logo,
+      x,
+      y: top + 0.03,
+      h: 0.32,
+      w: 0.32,
+      sizing: { type: 'contain', w: 0.32, h: 0.32 },
+    });
+    x += 0.42;
+  }
+  const text: PptxGenJS.TextProps[] = [];
+  if (branding.teamName) {
+    text.push({
+      text: `${branding.teamName}   `,
+      options: { bold: true, color: hex(branding.primary), fontSize: 12 },
+    });
+  }
+  text.push({ text: title, options: { color: '444444', fontSize: 10 } });
   slide.addText(text, {
-    x: r.x,
+    x,
+    y: top,
+    w: width - x - PAGE_MARGIN - 1.6,
+    h,
+    fontFace: face,
+    margin: 0,
+    valign: 'middle',
+  });
+  slide.addText(right, {
+    x: width - PAGE_MARGIN - 1.6,
+    y: top,
+    w: 1.6,
+    h,
+    fontSize: 10,
+    color: '444444',
+    fontFace: face,
+    margin: 0,
+    align: 'right',
+    valign: 'middle',
+  });
+  slide.addShape(pptx.ShapeType.line, {
+    x: PAGE_MARGIN,
+    y: top + h,
+    w: width - 2 * PAGE_MARGIN,
+    h: 0,
+    line: { color: hex(branding.primary), width: 1.5 },
+  });
+}
+
+/** "12  Play name" with the number on a team-colored tab. */
+function callTitle(
+  pptx: PptxGenJS,
+  slide: Slide,
+  branding: Branding,
+  number: number,
+  name: string,
+  r: Rect,
+  fontSize: number,
+) {
+  const face = BRAND_FONTS[branding.font].office;
+  let x = r.x;
+  if (number) {
+    const numW = Math.max(0.36, (String(number).length * fontSize * 0.62) / 72 + 0.14);
+    slide.addText(String(number), {
+      shape: pptx.ShapeType.rect,
+      x: r.x + 0.04,
+      y: r.y + 0.04,
+      w: numW,
+      h: r.h - 0.08,
+      fill: { color: hex(branding.primary) },
+      color: hex(textOn(branding.primary)),
+      fontSize,
+      bold: true,
+      fontFace: face,
+      align: 'center',
+      valign: 'middle',
+      margin: 0,
+    });
+    x += numW + 0.1;
+  }
+  slide.addText(name, {
+    x,
     y: r.y,
-    w: r.w,
+    w: r.x + r.w - x,
     h: r.h,
     fontSize,
     bold: true,
-    fontFace: 'Arial',
+    fontFace: face,
     color: '111111',
     valign: 'middle',
     margin: 0.04,
@@ -129,39 +236,52 @@ function titleText(slide: Slide, text: string, r: Rect, fontSize: number) {
 }
 
 /** One play per slide (16:9). */
-export function buildPlaysPptx(calls: NumberedPlay[], style: FieldStyle = 'whiteboard') {
-  const pptx = newDeck('wide');
+export function buildPlaysPptx(
+  calls: NumberedPlay[],
+  style: FieldStyle = 'whiteboard',
+  branding: Branding = DEFAULT_BRANDING,
+) {
+  const pptx = newDeck('wide', branding);
   for (const { number, play } of calls) {
     const slide = pptx.addSlide();
-    titleText(
+    if (branding.logo) {
+      slide.addImage({
+        data: branding.logo,
+        x: 12.2,
+        y: 0.2,
+        w: 0.7,
+        h: 0.6,
+        sizing: { type: 'contain', w: 0.7, h: 0.6 },
+      });
+    }
+    callTitle(pptx, slide, branding, number, play.name, { x: 0.4, y: 0.2, w: 11.6, h: 0.6 }, 24);
+    addDiagram(
+      pptx,
       slide,
-      number ? `${number}  ${play.name}` : play.name,
-      { x: 0.4, y: 0.2, w: 12.5, h: 0.6 },
-      24,
+      play,
+      style,
+      DEFAULT_WINDOW,
+      { x: 0.4, y: 0.9, w: 12.53, h: 6.4 },
+      offenseFill(branding),
     );
-    addDiagram(pptx, slide, play, style, DEFAULT_WINDOW, { x: 0.4, y: 0.9, w: 12.53, h: 6.4 });
   }
   return pptx;
 }
 
 /** The sheet's own layout: 1, 2, 4 or 8 plays per slide, or wristband panels. */
-export function buildSheetPptx(sheet: SheetDoc, calls: NumberedPlay[]) {
-  if (sheet.kind === 'wristband') return buildWristbandPptx(sheet, calls);
-  const pptx = newDeck(sheet.orientation);
+export function buildSheetPptx(
+  sheet: SheetDoc,
+  calls: NumberedPlay[],
+  branding: Branding = DEFAULT_BRANDING,
+) {
+  if (sheet.kind === 'wristband') return buildWristbandPptx(sheet, calls, branding);
+  const pptx = newDeck(sheet.orientation, branding);
+  const page = pageSize(sheet.orientation);
   const rects = cellRects(sheet.perPage, sheet.orientation);
   const pages = paginate(calls, sheet.perPage);
   pages.forEach((items, pi) => {
     const slide = pptx.addSlide();
-    slide.addText(`${sheet.name}    Page ${pi + 1} of ${pages.length}`, {
-      x: PAGE_MARGIN,
-      y: PAGE_MARGIN - 0.1,
-      w: 6,
-      h: 0.3,
-      fontSize: 10,
-      color: '444444',
-      fontFace: 'Arial',
-      margin: 0,
-    });
+    slideHeader(pptx, slide, branding, sheet.name, `Page ${pi + 1} of ${pages.length}`, page.w);
     items.forEach((item, i) => {
       const r = rects[i]!;
       const titleH = 0.3;
@@ -173,41 +293,47 @@ export function buildSheetPptx(sheet: SheetDoc, calls: NumberedPlay[]) {
         fill: { type: 'none' },
         line: { color: '999999', width: 0.75 },
       });
-      titleText(
+      callTitle(
+        pptx,
         slide,
-        `${item.number}   ${item.play.name}`,
+        branding,
+        item.number,
+        item.play.name,
         { x: r.x, y: r.y, w: r.w, h: titleH },
         Math.min(13, r.h * 7, r.w * 4.5),
       );
-      addDiagram(pptx, slide, item.play, 'whiteboard', SHEET_WINDOW, {
-        x: r.x + 0.02,
-        y: r.y + titleH,
-        w: r.w - 0.04,
-        h: r.h - titleH - 0.02,
-      });
+      addDiagram(
+        pptx,
+        slide,
+        item.play,
+        'whiteboard',
+        SHEET_WINDOW,
+        { x: r.x + 0.02, y: r.y + titleH, w: r.w - 0.04, h: r.h - titleH - 0.02 },
+        offenseFill(branding),
+      );
     });
   });
   return pptx;
 }
 
-function buildWristbandPptx(sheet: SheetDoc, calls: NumberedPlay[]) {
-  const pptx = newDeck('portrait');
+function buildWristbandPptx(sheet: SheetDoc, calls: NumberedPlay[], branding: Branding) {
+  const pptx = newDeck('portrait', branding);
+  const face = BRAND_FONTS[branding.font].office;
+  const page = pageSize('portrait');
   const { pages } = wristbandPanels(sheet.wristband);
   const { panels } = wristbandCalls(sheet, calls);
   const { rows, cols } = sheet.wristband;
   let idx = 0;
   for (const rects of pages) {
     const slide = pptx.addSlide();
-    slide.addText(`${sheet.name}: cut along the dashed lines`, {
-      x: PAGE_MARGIN,
-      y: PAGE_MARGIN - 0.1,
-      w: 7,
-      h: 0.3,
-      fontSize: 10,
-      color: '444444',
-      fontFace: 'Arial',
-      margin: 0,
-    });
+    slideHeader(
+      pptx,
+      slide,
+      branding,
+      `${sheet.name}: cut along the dashed lines`,
+      `${sheet.wristband.panelWidthIn}" x ${sheet.wristband.panelHeightIn}"`,
+      page.w,
+    );
     for (const r of rects) {
       const items = panels[idx++] ?? [];
       const rowsData: PptxGenJS.TableRow[] = [];
@@ -217,7 +343,7 @@ function buildWristbandPptx(sheet: SheetDoc, calls: NumberedPlay[]) {
           const call = items[c * rows + row];
           cells.push({
             text: call ? String(call.number) : '',
-            options: { bold: true, align: 'right' },
+            options: { bold: true, align: 'right', color: hex(branding.primary) },
           });
           cells.push({ text: call ? call.play.name : '' });
         }
@@ -233,7 +359,7 @@ function buildWristbandPptx(sheet: SheetDoc, calls: NumberedPlay[]) {
         colW: Array.from({ length: cols }, () => [numW, nameW]).flat(),
         rowH: r.h / rows,
         fontSize: Math.min(14, (r.h / rows) * 72 * 0.5),
-        fontFace: 'Arial',
+        fontFace: face,
         valign: 'middle',
         margin: 0.02,
         border: { type: 'dash', pt: 0.75, color: '555555' },
@@ -246,12 +372,33 @@ function buildWristbandPptx(sheet: SheetDoc, calls: NumberedPlay[]) {
 export async function exportSheetPptx(
   sheet: SheetDoc,
   calls: NumberedPlay[],
-  mode: 'sheet' | 'slides' = 'sheet',
+  mode: 'sheet' | 'slides',
+  branding: Branding,
 ) {
-  const pptx = mode === 'slides' ? buildPlaysPptx(calls) : buildSheetPptx(sheet, calls);
+  const pptx =
+    mode === 'slides'
+      ? buildPlaysPptx(calls, 'whiteboard', branding)
+      : buildSheetPptx(sheet, calls, branding);
   await save(pptx, sheet.name);
 }
 
-export async function exportPlayPptx(play: Play, style: FieldStyle) {
-  await save(buildPlaysPptx([{ number: 0, play }], style), play.name);
+export async function exportPlayPptx(play: Play, style: FieldStyle, branding: Branding) {
+  await save(buildPlaysPptx([{ number: 0, play }], style, branding), play.name);
+}
+
+/** A whole playbook, one play per slide, in the order given. */
+export async function exportPlaybookPptx(name: string, plays: Play[], branding: Branding) {
+  await save(
+    buildPlaysPptx(
+      plays.map((play) => ({ number: 0, play })),
+      'whiteboard',
+      branding,
+    ),
+    name,
+  );
+}
+
+/** The deck as base64, for inserting slides straight into an open PowerPoint presentation. */
+export async function pptxBase64(pptx: PptxGenJS): Promise<string> {
+  return (await pptx.write({ outputType: 'base64' })) as string;
 }

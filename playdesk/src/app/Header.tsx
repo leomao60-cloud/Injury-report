@@ -5,6 +5,7 @@ const NAV: { route: Route; label: string }[] = [
   { route: 'editor', label: 'Editor' },
   { route: 'library', label: 'Library' },
   { route: 'sheets', label: 'Sheets' },
+  { route: 'team', label: 'Team' },
 ];
 
 export function Header({ route }: { route: Route }) {

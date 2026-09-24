@@ -1,5 +1,5 @@
 import type { ReactNode, SVGProps } from 'react';
-import { linePath, type FieldStyle, type Play } from '../model';
+import { drawnPath, type FieldStyle, type Play } from '../model';
 import { Field } from './Field';
 import { DEFAULT_WINDOW, viewBoxFor, type ViewWindow } from './geometry';
 import { PlayLineView } from './PlayLineView';
@@ -9,6 +9,8 @@ export interface PlayDiagramOptions {
   style?: FieldStyle;
   window?: ViewWindow;
   numbers?: boolean;
+  /** Fill for offensive players without their own color, e.g. the team color. */
+  offenseFill?: string;
 }
 
 export interface PlayDiagramProps extends PlayDiagramOptions {
@@ -29,6 +31,7 @@ export function PlayDiagram({
   style = 'whiteboard',
   window = DEFAULT_WINDOW,
   numbers = true,
+  offenseFill,
   title,
   className,
   svgProps,
@@ -52,7 +55,7 @@ export function PlayDiagram({
           <PlayLineView
             key={line.id}
             line={line}
-            points={linePath(play, line)}
+            points={drawnPath(play, line)}
             type={line.type}
             color={line.color}
             style={style}
@@ -62,7 +65,7 @@ export function PlayDiagram({
       {children}
       <g>
         {play.players.map((p) => (
-          <PlayerMarker key={p.id} player={p} style={style} />
+          <PlayerMarker key={p.id} player={p} style={style} defaultFill={offenseFill} />
         ))}
       </g>
     </svg>

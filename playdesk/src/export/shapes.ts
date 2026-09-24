@@ -1,4 +1,4 @@
-import { FIELD_WIDTH, hashXs, linePath, type FieldStyle, type Play, type Point } from '../model';
+import { FIELD_WIDTH, hashXs, drawnPath, type FieldStyle, type Play, type Point } from '../model';
 import {
   BAR_HALF,
   DIAGRAM_COLORS,
@@ -64,6 +64,7 @@ export type Shape =
       color: string;
       fontSize: number;
       bold?: boolean;
+      align?: 'left' | 'center';
       name?: string;
     };
 
@@ -96,6 +97,7 @@ export function diagramShapes(
   style: FieldStyle,
   window: ViewWindow,
   box: Rect,
+  offenseFill?: string,
 ): Shape[] {
   const c = DIAGRAM_COLORS[style];
   const vb = viewBoxFor(window);
@@ -182,7 +184,7 @@ export function diagramShapes(
   });
 
   for (const line of play.lines) {
-    const pts = linePath(play, line);
+    const pts = drawnPath(play, line);
     const color = solidHex(line.color ?? c.line);
     const w = ptW(0.22);
     for (let i = 1; i < pts.length; i++) {
@@ -235,7 +237,7 @@ export function diagramShapes(
       });
       continue;
     }
-    const fill = solidHex(p.color ?? c.playerFill);
+    const fill = solidHex(p.color ?? offenseFill ?? c.playerFill);
     const common = {
       x: X(p.x) - r,
       y: Y(p.y) - r,

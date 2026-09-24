@@ -1,5 +1,6 @@
 import type { Play } from '../model';
 import type { SheetDoc } from '../sheets/types';
+import type { Branding } from './branding';
 
 export const DEFAULT_FOLDERS = ['Offense', 'Defense', 'Special teams'] as const;
 
@@ -21,4 +22,5 @@ export interface LibraryBackup {
   plays: SavedPlay[];
   folders: string[];
   sheets: SheetDoc[];
+  branding?: Branding;
 }

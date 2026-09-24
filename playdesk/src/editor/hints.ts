@@ -1,6 +1,7 @@
 import type { Tool } from '../store/editorStore';
 
-export const HINTS: Record<Tool | 'drawing', string> = {
+export const HINTS: Record<Tool | 'drawing' | 'lineSelected', string> = {
+  lineSelected: 'Drag an orange dot to move a break. Click empty field to deselect.',
   move: 'Drag a player to move him. Click a player or a line to select it.',
   route: 'Click a player to start a route.',
   block: 'Click a player to start a block. Click a defender to block him.',

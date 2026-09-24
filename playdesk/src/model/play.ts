@@ -1,7 +1,19 @@
 import { FIELD_WIDTH, ballXFor, clamp, clampX, round } from './field';
-import { getFormation, OL_SPLIT, ON_LINE_THRESHOLD } from './formations';
+import { smoothPath } from './curve';
+import { placeDefense } from './defense';
+import { getFormation } from './formations';
 import { newId } from './ids';
-import type { BallOn, FormationId, Level, LineType, Play, Player, PlayLine, Point } from './types';
+import type {
+  BallOn,
+  FormationId,
+  Level,
+  LineType,
+  Play,
+  Player,
+  PlayLine,
+  Point,
+  Side,
+} from './types';
 
 /** How far downfield/backfield a player can be placed. */
 export const MIN_Y = -15;
@@ -87,6 +99,12 @@ export function linePath(play: Play, line: PlayLine): Point[] {
   return [lineStart(play, line), ...line.points];
 }
 
+/** The path as drawn: smoothed when the line is curved. */
+export function drawnPath(play: Play, line: PlayLine): Point[] {
+  const path = linePath(play, line);
+  return line.curved ? smoothPath(path) : path;
+}
+
 // ---------- player operations ----------
 
 /** Move a player; his lines move by the same amount. */
@@ -150,7 +168,7 @@ export function addLine(
 export function updateLine(
   play: Play,
   lineId: string,
-  patch: Partial<Pick<PlayLine, 'type' | 'color' | 'points'>>,
+  patch: Partial<Pick<PlayLine, 'type' | 'color' | 'points' | 'curved'>>,
 ): Play {
   const line = play.lines.find((l) => l.id === lineId);
   if (!line) return play;
@@ -256,92 +274,53 @@ export function applyFormation(play: Play, formationId: FormationId): Play {
   return next.showDefense ? placeDefense(next) : next;
 }
 
-// ---------- defense ----------
+// ---------- players ----------
 
-export const DEFENSE_IDS = [
-  'de-l',
-  'dt-l',
-  'dt-r',
-  'de-r',
-  'lb-w',
-  'lb-m',
-  'lb-s',
-  'cb-l',
-  'cb-r',
-  'ss',
-  'fs',
-];
-
-export function isOnLine(p: Player): boolean {
-  return p.side === 'offense' && p.y > ON_LINE_THRESHOLD;
-}
-
-/**
- * A 4-3 with two deep safeties. Corners line up over the widest receiver on each side;
- * the Sam linebacker and strong safety go to the side with more receivers.
- */
-export function placeDefense(play: Play): Play {
-  const b = play.ballX;
-  const offense = play.players.filter((p) => p.side === 'offense');
-  const left = offense.filter((p) => p.x < b - 0.25);
-  const right = offense.filter((p) => p.x > b + 0.25);
-  const strongRight = right.length >= left.length;
-  const s = strongRight ? 1 : -1;
-
-  const widestLeft = Math.min(...left.map((p) => p.x), b);
-  const widestRight = Math.max(...right.map((p) => p.x), b);
-  const cornerL = widestLeft < b - 6 ? widestLeft : b - 10;
-  const cornerR = widestRight > b + 6 ? widestRight : b + 10;
-
-  // Defensive ends outside the widest player on the line within 6 yards of the ball.
-  const lineLeft = offense.filter((p) => isOnLine(p) && p.x < b && p.x > b - 7);
-  const lineRight = offense.filter((p) => isOnLine(p) && p.x > b && p.x < b + 7);
-  const endL = Math.min(...lineLeft.map((p) => p.x), b - 2 * OL_SPLIT) - 1.5;
-  const endR = Math.max(...lineRight.map((p) => p.x), b + 2 * OL_SPLIT) + 1.5;
-
-  const d = (id: string, label: string, x: number, y: number): Player => ({
+/** Add an extra player a few yards from the ball. Returns the play and the new player's id. */
+export function addPlayer(play: Play, side: Side): { play: Play; id: string } {
+  const id = newId(side === 'offense' ? 'o' : 'd');
+  const taken = (x: number, y: number) =>
+    play.players.some((p) => Math.abs(p.x - x) < 1.2 && Math.abs(p.y - y) < 1.2);
+  const y = side === 'offense' ? -3 : 4;
+  let x = play.ballX + 3;
+  for (let i = 0; i < 20 && taken(x, y); i++) x += 1.5;
+  const player: Player = {
     id,
-    side: 'defense',
-    label,
-    shape: 'letter',
+    side,
+    label: side === 'offense' ? 'A' : 'D',
+    shape: side === 'offense' ? 'circle' : 'letter',
     x: round(clampX(x)),
     y,
-  });
+  };
+  return { play: { ...play, players: [...play.players, player] }, id };
+}
 
-  const defenders: Player[] = [
-    d('de-l', 'E', endL, 1),
-    // Nose on the weak shade of the center, 3-technique outside the strong guard.
-    d('dt-l', strongRight ? 'N' : 'T', strongRight ? b - 0.6 : b - OL_SPLIT - 0.6, 1),
-    d('dt-r', strongRight ? 'T' : 'N', strongRight ? b + OL_SPLIT + 0.6 : b + 0.6, 1),
-    d('de-r', 'E', endR, 1),
-    d('lb-w', 'W', b - 4 * s, 5),
-    d('lb-m', 'M', b, 5),
-    d('lb-s', 'S', b + 4 * s, 5),
-    d('cb-l', 'C', cornerL, 7),
-    d('cb-r', 'C', cornerR, 7),
-    d('ss', 'SS', b + 9 * s, 12),
-    d('fs', 'FS', b - 9 * s, 12),
-  ];
-
-  const oldDefenseIds = new Set(play.players.filter((p) => p.side === 'defense').map((p) => p.id));
+/** Remove a player and all of his lines. */
+export function removePlayer(play: Play, playerId: string): Play {
   return {
     ...play,
-    showDefense: true,
-    players: [...offense, ...defenders],
-    lines: play.lines.filter((l) => !oldDefenseIds.has(l.playerId)),
+    players: play.players.filter((p) => p.id !== playerId),
+    lines: play.lines.filter((l) => l.playerId !== playerId),
   };
 }
 
-export function removeDefense(play: Play): Play {
-  const ids = new Set(play.players.filter((p) => p.side === 'defense').map((p) => p.id));
+/** Move one break point of a line. */
+export function moveLinePoint(play: Play, lineId: string, index: number, to: Point): Play {
+  const target = clampPoint(to);
   return {
     ...play,
-    showDefense: false,
-    players: play.players.filter((p) => p.side !== 'defense'),
-    lines: play.lines.filter((l) => !ids.has(l.playerId)),
+    lines: play.lines.map((l) =>
+      l.id === lineId && index >= 0 && index < l.points.length
+        ? { ...l, points: l.points.map((pt, i) => (i === index ? target : pt)) }
+        : l,
+    ),
   };
 }
 
-export function setShowDefense(play: Play, show: boolean): Play {
-  return show ? placeDefense(play) : removeDefense(play);
+/** Remove one break point; a line with no points left is removed. */
+export function removeLinePoint(play: Play, lineId: string, index: number): Play {
+  const line = play.lines.find((l) => l.id === lineId);
+  if (!line) return play;
+  if (line.points.length <= 1) return removeLine(play, lineId);
+  return updateLine(play, lineId, { points: line.points.filter((_, i) => i !== index) });
 }

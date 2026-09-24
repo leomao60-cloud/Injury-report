@@ -1,6 +1,7 @@
 import { useEditorStore } from '../store/editorStore';
 import { cancelLine, finishLine, removeLastPoint } from './actions';
 import { FieldEditor } from './FieldEditor';
+import { QuickStart } from './QuickStart';
 import { SidePanel } from './SidePanel';
 import { ToolRail } from './ToolRail';
 import { useShortcuts } from './useShortcuts';
@@ -13,6 +14,7 @@ export function EditorScreen() {
     <div className={styles.layout}>
       <ToolRail />
       <main className={styles.main}>
+        <QuickStart />
         {draft && (
           <div className={styles.drawBar} role="toolbar" aria-label="Line being drawn">
             <span className="small">

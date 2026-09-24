@@ -40,3 +40,24 @@ test('sheets number plays in order', async ({ page }) => {
   await page.getByRole('button', { name: 'Wristband' }).click();
   await expect(page.getByTestId('wristband-panel')).toHaveCount(3);
 });
+
+test('number boxes on Sheets can be cleared and retyped', async ({ page }) => {
+  await page.goto('/app/sheets');
+  await page.getByRole('button', { name: 'Add all' }).click();
+  const start = page.getByRole('spinbutton', { name: 'Start at' });
+  await start.click();
+  await start.press('Backspace');
+  await expect(start).toHaveValue('');
+  await start.pressSequentially('40');
+  await expect(page.getByTestId('sheet-cell').first()).toContainText('40');
+
+  await page.getByRole('button', { name: 'Wristband' }).click();
+  const rows = page.getByRole('spinbutton', { name: 'Rows' });
+  await rows.fill('');
+  await rows.pressSequentially('4');
+  await rows.blur();
+  await expect(rows).toHaveValue('4');
+  await rows.fill('');
+  await rows.blur();
+  await expect(rows).toHaveValue('4'); // empty box goes back to the last good value
+});

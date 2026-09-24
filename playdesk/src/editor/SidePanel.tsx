@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   FORMATIONS,
   HASH_WIDTH_NOTE,
@@ -18,12 +18,22 @@ import {
   type FormationId,
   type Level,
   type LineType,
+  DEFENSES,
+  addPlayer,
+  placeDefense,
+  removePlayer,
+  type DefenseId,
 } from '../model';
 import { SaveControls } from '../library/SaveControls';
+import { offenseFill } from '../library/branding';
+import { useLibraryStore } from '../library/libraryStore';
+import { PLAY_FILE_EXT, parsePlayFile, readJsonFile, serializePlayFile } from '../library/playFile';
+import { downloadBlob, safeFilename } from '../export/download';
+import { useOfficeHost } from '../office/office';
 import { useEditorStore } from '../store/editorStore';
 import { usePlay, usePlayStore } from '../store/playStore';
 import { canRedo, canUndo } from '../store/history';
-import { dropStaleSelection, finishLine, redo, undo } from './actions';
+import { cancelLine, dropStaleSelection, finishLine, redo, undo } from './actions';
 import styles from './SidePanel.module.css';
 
 const COLOR_SWATCHES = [
@@ -37,10 +47,18 @@ const COLOR_SWATCHES = [
   '#7b2cbf',
 ];
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   const id = `sec-${title.toLowerCase().replace(/\W+/g, '-')}`;
   return (
-    <section className={styles.section} aria-labelledby={id}>
+    <section className={`${styles.section} ${className ?? ''}`} aria-labelledby={id}>
       <h2 id={id} className={styles.heading}>
         {title}
       </h2>
@@ -126,7 +144,7 @@ function SelectionSection() {
 
   if (!selection) {
     return (
-      <Section title="Selection">
+      <Section title="Selection" className={styles.selection}>
         <p className="muted small">
           Nothing selected. With the Move tool, click a player or a line.
         </p>
@@ -139,7 +157,7 @@ function SelectionSection() {
     if (!p) return null;
     const lineCount = play.lines.filter((l) => l.playerId === p.id).length;
     return (
-      <Section title="Selection">
+      <Section title="Selection" className={styles.selection}>
         <p className="small muted">{p.side === 'offense' ? 'Offensive player' : 'Defender'}</p>
         <label className={styles.field}>
           <span>Label</span>
@@ -170,6 +188,16 @@ function SelectionSection() {
         >
           Erase his lines ({lineCount})
         </button>
+        <button
+          type="button"
+          className="btn btn-sm btn-danger"
+          onClick={() => {
+            apply((pl) => removePlayer(pl, p.id));
+            useEditorStore.getState().select(null);
+          }}
+        >
+          Delete player
+        </button>
       </Section>
     );
   }
@@ -178,7 +206,7 @@ function SelectionSection() {
   if (!line) return null;
   const owner = getPlayer(play, line.playerId);
   return (
-    <Section title="Selection">
+    <Section title="Selection" className={styles.selection}>
       <p className="small muted">
         {line.type[0]!.toUpperCase() + line.type.slice(1)} for {owner?.label || 'player'}
       </p>
@@ -195,6 +223,16 @@ function SelectionSection() {
           onChange={(type) => apply((pl) => updateLine(pl, line.id, { type }))}
         />
       </div>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={Boolean(line.curved)}
+          onChange={(e) => apply((pl) => updateLine(pl, line.id, { curved: e.target.checked }))}
+          data-testid="line-curved"
+        />
+        Curved (smooth through the breaks)
+      </label>
+      <p className="small muted">Drag the orange dots on the field to move a break.</p>
       <div className={styles.field}>
         <span>Color</span>
         <Swatches
@@ -222,44 +260,141 @@ function SelectionSection() {
 function ExportSection() {
   const play = usePlay();
   const fieldStyle = useEditorStore((s) => s.fieldStyle);
+  const branding = useLibraryStore((s) => s.branding);
+  const inPowerPoint = useOfficeHost() === 'PowerPoint';
   const [busy, setBusy] = useState(false);
-  const run = async (fn: () => Promise<void>) => {
+  const [message, setMessage] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const run = async (fn: () => Promise<void>, done?: string) => {
     setBusy(true);
+    setMessage(null);
     try {
       await fn();
+      if (done) setMessage(done);
     } catch (e) {
       console.error(e);
-      window.alert('Sorry, the export failed. Please try again.');
+      setMessage(
+        e instanceof Error && e.message ? e.message : 'Sorry, that did not work. Please try again.',
+      );
     } finally {
       setBusy(false);
     }
   };
   return (
-    <Section title="Export">
+    <Section title="Files & export">
+      {inPowerPoint && (
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={busy}
+          onClick={() =>
+            void run(
+              async () =>
+                (await import('../office/insert')).insertPlayIntoPowerPoint(
+                  play,
+                  fieldStyle,
+                  branding,
+                ),
+              'Inserted as a new slide.',
+            )
+          }
+          data-testid="insert-powerpoint"
+        >
+          Insert into PowerPoint
+        </button>
+      )}
+      <div className={styles.row}>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() =>
+            downloadBlob(
+              new Blob([serializePlayFile(play)], { type: 'application/json' }),
+              safeFilename(play.name, PLAY_FILE_EXT),
+            )
+          }
+          data-testid="save-play-file"
+        >
+          Save to file
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()}>
+          Open file…
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".playdesk,application/json,.json"
+          hidden
+          data-testid="open-play-file"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            void run(async () => {
+              const opened = parsePlayFile(await readJsonFile(f));
+              cancelLine();
+              useEditorStore.getState().select(null);
+              usePlayStore.getState().load(opened);
+            }, 'Play opened.');
+          }}
+        />
+      </div>
       <div className={styles.row}>
         <button
           type="button"
           className="btn btn-sm"
           disabled={busy}
           onClick={() =>
-            void run(async () => (await import('../export/png')).exportPlayPng(play, fieldStyle))
+            void run(async () =>
+              (await import('../export/pptx')).exportPlayPptx(play, fieldStyle, branding),
+            )
           }
         >
-          PNG image
+          PowerPoint
         </button>
         <button
           type="button"
           className="btn btn-sm"
           disabled={busy}
           onClick={() =>
-            void run(async () => (await import('../export/pptx')).exportPlayPptx(play, fieldStyle))
+            void run(async () =>
+              (await import('../export/vsdx')).exportVsdx(
+                play.name,
+                [{ name: play.name, play }],
+                fieldStyle,
+                branding,
+              ),
+            )
+          }
+          data-testid="export-visio"
+        >
+          Visio
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={() =>
+            void run(async () =>
+              (await import('../export/png')).exportPlayPng(
+                play,
+                fieldStyle,
+                offenseFill(branding),
+              ),
+            )
           }
         >
-          PowerPoint
+          PNG image
         </button>
       </div>
+      {message && (
+        <p className="small" role="status">
+          {message}
+        </p>
+      )}
       <p className="small muted">
-        Uses the current field style. For PDFs of several plays, use Sheets.
+        Files are saved to your own computer: .playdesk files open again in Playdesk; PowerPoint
+        (.pptx) and Visio (.vsdx) files have players and routes as shapes you can edit.
       </p>
     </Section>
   );
@@ -275,6 +410,18 @@ export function SidePanel() {
     finishLine();
     apply(fn, key);
     dropStaleSelection();
+  };
+
+  const addAndSelect = (side: 'offense' | 'defense') => {
+    finishLine();
+    let id = '';
+    apply((p) => {
+      const r = addPlayer(p, side);
+      id = r.id;
+      return r.play;
+    });
+    useEditorStore.getState().setTool('move');
+    useEditorStore.getState().select({ kind: 'player', id });
   };
 
   return (
@@ -354,6 +501,24 @@ export function SidePanel() {
         >
           Reset to formation
         </button>
+        <div className={styles.row}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => addAndSelect('offense')}
+            data-testid="add-offense"
+          >
+            Add player
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => addAndSelect('defense')}
+            data-testid="add-defense"
+          >
+            Add defender
+          </button>
+        </div>
       </Section>
 
       <Section title="Ball on">
@@ -374,8 +539,26 @@ export function SidePanel() {
             onChange={(e) => act((p) => setShowDefense(p, e.target.checked))}
             data-testid="show-defense"
           />
-          Show defense (4-3, two-deep)
+          Show defense
         </label>
+        <select
+          className="select"
+          aria-label="Defense"
+          value={play.defense ?? '43-cover2'}
+          disabled={!play.showDefense}
+          onChange={(e) => act((p) => placeDefense(p, e.target.value as DefenseId))}
+        >
+          {DEFENSES.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+        {play.showDefense && (
+          <button type="button" className="btn btn-sm" onClick={() => act((p) => placeDefense(p))}>
+            Re-align defense
+          </button>
+        )}
       </Section>
 
       <Section title="Field">

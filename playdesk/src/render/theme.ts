@@ -46,7 +46,8 @@ export const DIAGRAM_COLORS: Record<FieldStyle, DiagramColors> = {
 
 export const PLAYER_RADIUS = 0.75;
 /** Fonts every PDF and PowerPoint reader has, so exported drawings match the screen. */
-export const DIAGRAM_FONT = 'Helvetica, Arial, sans-serif';
+// Lowercase 'helvetica' first: it is the name the PDF converter (svg2pdf/jsPDF) recognises.
+export const DIAGRAM_FONT = 'helvetica, Arial, sans-serif';
 export const LINE_WIDTH = 0.22;
 
 /** Pick black or white label text for a fill color. */

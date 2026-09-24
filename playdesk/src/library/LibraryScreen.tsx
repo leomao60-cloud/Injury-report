@@ -10,10 +10,16 @@ import { PlayThumb } from './PlayThumb';
 import { allTags, filterPlays, parseTags } from './search';
 import { DEFAULT_FOLDERS, type SavedPlay } from './types';
 import { BackupError } from './validate';
+import { isPlayFile, parsePlayFile, readJsonFile } from './playFile';
+import { useOfficeHost } from '../office/office';
 import styles from './LibraryScreen.module.css';
 
 export function LibraryScreen() {
-  const { plays, folders, loaded, error, addFolder, removeFolder, refresh } = useLibraryStore();
+  const { plays, folders, loaded, error, addFolder, removeFolder, refresh, branding } =
+    useLibraryStore();
+  const savePlay = useLibraryStore((s) => s.save);
+  const inPowerPoint = useOfficeHost() === 'PowerPoint';
+  const [busy, setBusy] = useState(false);
   const [folder, setFolder] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -33,18 +39,66 @@ export function LibraryScreen() {
     setMessage(`Exported ${backup.plays.length} plays and ${backup.sheets.length} sheets.`);
   }
 
-  async function onImport(file: File) {
+  async function onImport(files: File[]) {
     try {
-      if (file.size > 20 * 1024 * 1024)
-        throw new BackupError('That file is too large to be a Playdesk backup.');
-      const data: unknown = JSON.parse(await file.text());
-      const n = await importBackup(data);
+      let plays = 0;
+      let sheets = 0;
+      for (const file of files) {
+        const data = await readJsonFile(file);
+        if (isPlayFile(data)) {
+          // A single .playdesk play file: add it (or update it) in the current folder.
+          await savePlay(parsePlayFile(data), folder ?? 'Offense');
+          plays++;
+        } else {
+          const n = await importBackup(data);
+          plays += n.plays;
+          sheets += n.sheets;
+        }
+      }
       await refresh();
-      setMessage(`Imported ${n.plays} plays and ${n.sheets} sheets.`);
+      setMessage(
+        `Imported ${plays} play${plays === 1 ? '' : 's'}${sheets ? ` and ${sheets} sheets` : ''}.`,
+      );
     } catch (e) {
       setMessage(
         e instanceof BackupError ? e.message : 'That file could not be read as a Playdesk backup.',
       );
+    }
+  }
+
+  async function downloadPlaybook(kind: 'pptx' | 'vsdx' | 'insert') {
+    const name = `${branding.teamName || 'Playdesk'} ${folder ?? 'playbook'}`.trim();
+    setBusy(true);
+    try {
+      if (kind === 'pptx') {
+        const { exportPlaybookPptx } = await import('../export/pptx');
+        await exportPlaybookPptx(
+          name,
+          shown.map((p) => p.play),
+          branding,
+        );
+      } else if (kind === 'vsdx') {
+        const { exportVsdx } = await import('../export/vsdx');
+        await exportVsdx(
+          name,
+          shown.map((p) => ({ name: p.play.name, play: p.play })),
+          'whiteboard',
+          branding,
+        );
+      } else {
+        const { insertPlaysIntoPowerPoint } = await import('../office/insert');
+        await insertPlaysIntoPowerPoint(
+          shown.map((p) => ({ number: 0, play: p.play })),
+          'whiteboard',
+          branding,
+        );
+        setMessage(`Inserted ${shown.length} slides.`);
+      }
+    } catch (e) {
+      console.error(e);
+      setMessage(e instanceof Error && e.message ? e.message : 'Sorry, that did not work.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -109,23 +163,60 @@ export function LibraryScreen() {
             Export library (.json)
           </button>
           <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()}>
-            Import backup…
+            Import files…
           </button>
           <input
             ref={fileRef}
             type="file"
-            accept="application/json,.json"
+            accept=".playdesk,application/json,.json"
+            multiple
             hidden
             data-testid="import-file"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImport(f);
+              const files = [...(e.target.files ?? [])];
+              if (files.length) void onImport(files);
               e.target.value = '';
             }}
           />
         </div>
         <p className="small muted">
-          Your plays are stored in this browser only. Export a backup now and then.
+          Imports a library backup or .playdesk play files. Your plays live in this browser and in
+          the files you save, never in a Playdesk cloud, so they go with you to any computer or
+          school.
+        </p>
+
+        <h2 className={styles.heading}>Download playbook</h2>
+        <div className={styles.backup}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={shown.length === 0 || busy}
+            onClick={() => void downloadPlaybook('pptx')}
+          >
+            PowerPoint (.pptx)
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={shown.length === 0 || busy}
+            onClick={() => void downloadPlaybook('vsdx')}
+          >
+            Visio (.vsdx)
+          </button>
+          {inPowerPoint && (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              disabled={shown.length === 0 || busy}
+              onClick={() => void downloadPlaybook('insert')}
+            >
+              Insert all into PowerPoint
+            </button>
+          )}
+        </div>
+        <p className="small muted">
+          One play per slide or page: the {shown.length} play{shown.length === 1 ? '' : 's'} shown
+          on the right, in your team branding.
         </p>
       </aside>
 

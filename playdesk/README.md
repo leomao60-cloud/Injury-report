@@ -34,6 +34,25 @@ npm run test:e2e      # browser tests; first time only: npx playwright install c
 
 `vercel.json` sends every path to `index.html`, so links like `/app/sheets` work on refresh.
 
+## Use Playdesk inside PowerPoint (add-in)
+
+Playdesk runs as a PowerPoint task-pane add-in and inserts plays as normal, editable slides.
+
+1. Deploy the app (above). `npm run build` writes `dist/office/manifest.xml` pointing at your site.
+   On Vercel the address is picked up automatically; elsewhere set `PLAYDESK_URL=https://your-site` before building.
+2. Download the manifest from `https://your-site/office/manifest.xml` (the landing page links to it).
+3. In PowerPoint: **Home → Add-ins → More Add-ins → My Add-ins → Upload My Add-in**, and pick the file.
+   A school IT admin can deploy the same file to every coach from the Microsoft 365 admin center.
+4. Click **Playdesk** on the Home tab. **Insert into PowerPoint** appears in the editor, Library and Sheets.
+
+Needs PowerPoint 2019 or Microsoft 365 (desktop, Mac or web), which support `PowerPointApi 1.2`.
+
+## Visio
+
+Microsoft only lets add-ins like this run inside Visio on the web, so Playdesk supports Visio through files: download
+`.vsdx` from the editor (one play), the Library (whole playbook) or Sheets (numbered plays), and open them in
+Visio. Each play is a page, and every player and route is an ordinary Visio shape.
+
 ## Where data lives
 
 Plays and sheets are stored in the browser's IndexedDB on this device. The play open in the editor is also autosaved

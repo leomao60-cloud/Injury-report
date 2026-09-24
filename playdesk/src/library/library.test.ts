@@ -71,6 +71,27 @@ describe('backup validation', () => {
     expect(validateBackup(c).plays[0]).not.toHaveProperty('evil');
   });
 
+  it('rejects sheet layouts the app cannot draw', () => {
+    const sheet = {
+      id: 's1',
+      name: 'Sheet',
+      kind: 'sheet',
+      playIds: [],
+      perPage: 3,
+      orientation: 'landscape',
+      startNumber: 1,
+      skip: [],
+      wristband: {},
+      updatedAt: 1,
+    };
+    expect(() => validateBackup({ ...good(), sheets: [sheet] })).toThrow(/damaged/);
+    const ok = validateBackup({
+      ...good(),
+      sheets: [{ ...sheet, perPage: 4, startNumber: 2.7, wristband: { rows: 5.5 } }],
+    });
+    expect(ok.sheets[0]).toMatchObject({ perPage: 4, startNumber: 2, wristband: { rows: 5 } });
+  });
+
   it('caps label length', () => {
     const b = good();
     b.plays[0]!.play.players[0]!.label = 'LONGLABEL';

@@ -1,5 +1,6 @@
-import { FORMATIONS, type Play, type Player, type PlayLine, type Point } from '../model';
+import { DEFENSES, FORMATIONS, type Play, type Player, type PlayLine, type Point } from '../model';
 import { DEFAULT_WRISTBAND, type SheetDoc } from '../sheets/types';
+import { sanitizeBranding } from './branding';
 import type { LibraryBackup, SavedPlay } from './types';
 
 /**
@@ -24,7 +25,7 @@ const str = (v: unknown, max: number): string => {
   if (typeof v !== 'string') throw new BackupError('Bad text');
   return v.slice(0, max);
 };
-const oneOf = <T extends string>(v: unknown, options: readonly T[]): T => {
+const oneOf = <T extends string | number>(v: unknown, options: readonly T[]): T => {
   if (!options.includes(v as T)) throw new BackupError(`Unexpected value ${String(v)}`);
   return v as T;
 };
@@ -68,6 +69,7 @@ function line(v: unknown): PlayLine {
   };
   const c = color(v.color);
   if (c) l.color = c;
+  if (v.curved === true) l.curved = true;
   return l;
 }
 
@@ -86,6 +88,14 @@ export function validatePlay(v: unknown): Play {
       FORMATIONS.map((f) => f.id),
     ),
     showDefense: Boolean(v.showDefense),
+    ...(v.defense === undefined
+      ? {}
+      : {
+          defense: oneOf(
+            v.defense,
+            DEFENSES.map((f) => f.id),
+          ),
+        }),
     players,
     lines: arr(v.lines, MAX_LINES)
       .map(line)
@@ -116,16 +126,16 @@ function sheet(v: unknown): SheetDoc {
     name: str(v.name, 80),
     kind: oneOf(v.kind, ['sheet', 'wristband'] as const),
     playIds: arr(v.playIds, MAX_PLAYS).map((id) => str(id, 60)),
-    perPage: num(v.perPage, 1, 8) as SheetDoc['perPage'],
+    perPage: oneOf(v.perPage, [1, 2, 4, 8] as const),
     orientation: oneOf(v.orientation, ['landscape', 'portrait'] as const),
-    startNumber: num(v.startNumber, 0, 9999),
+    startNumber: Math.floor(num(v.startNumber, 0, 9999)),
     skip: arr(v.skip ?? [], 500).map((n) => num(n, 0, 99999)),
     wristband: {
       panelWidthIn: num(w.panelWidthIn ?? DEFAULT_WRISTBAND.panelWidthIn, 1, 11),
       panelHeightIn: num(w.panelHeightIn ?? DEFAULT_WRISTBAND.panelHeightIn, 1, 8.5),
-      panels: num(w.panels ?? DEFAULT_WRISTBAND.panels, 1, 6),
-      rows: num(w.rows ?? DEFAULT_WRISTBAND.rows, 1, 20),
-      cols: num(w.cols ?? DEFAULT_WRISTBAND.cols, 1, 6),
+      panels: Math.floor(num(w.panels ?? DEFAULT_WRISTBAND.panels, 1, 6)),
+      rows: Math.floor(num(w.rows ?? DEFAULT_WRISTBAND.rows, 1, 20)),
+      cols: Math.floor(num(w.cols ?? DEFAULT_WRISTBAND.cols, 1, 6)),
     },
     updatedAt: num(v.updatedAt, 0, 1e14),
   };
@@ -146,6 +156,7 @@ export function validateBackup(v: unknown): LibraryBackup {
         .map((f) => str(f, 40))
         .filter(Boolean),
       sheets: arr(v.sheets ?? [], 1000).map(sheet),
+      ...(v.branding === undefined ? {} : { branding: sanitizeBranding(v.branding) }),
     };
   } catch (e) {
     if (e instanceof BackupError)

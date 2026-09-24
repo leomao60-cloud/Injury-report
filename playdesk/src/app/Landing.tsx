@@ -49,33 +49,73 @@ export function Landing() {
 
         <section className={styles.features} aria-label="Features">
           <article>
-            <h2>Real field, real hashes</h2>
+            <h2>Works with PowerPoint and Visio</h2>
             <p>
-              High school, college and NFL hash marks. Put the ball on either hash and your
-              formation shifts with it.
+              Add Playdesk to PowerPoint and insert plays straight into your deck, or download .pptx
+              and .vsdx files. Every player and route is a normal shape you can edit.
+            </p>
+          </article>
+          <article>
+            <h2>Standard, shareable files</h2>
+            <p>
+              Save plays as files, export your whole playbook to PowerPoint or Visio, or print a
+              PDF. Share them the way you share any other file.
+            </p>
+          </article>
+          <article>
+            <h2>Diagrams that fit themselves</h2>
+            <p>
+              Call sheets, wristbands and slides are built from your plays, so every diagram is
+              sized to its spot automatically: 1, 2, 4 or 8 to a page.
+            </p>
+          </article>
+          <article>
+            <h2>Your team’s look</h2>
+            <p>
+              Add your logo, team colors and font once. Every sheet, PDF, slide and Visio page uses
+              them.
+            </p>
+          </article>
+          <article>
+            <h2>Move teams, keep your files</h2>
+            <p>
+              Plays live in your browser and in the files you save, not in someone else’s cloud, so
+              they go wherever your coaching job takes you.
             </p>
           </article>
           <article>
             <h2>Draw like a whiteboard</h2>
             <p>
-              Routes, blocks and motion in a few clicks. Flip a play, undo anything, and snap
-              players to the half-yard.
+              Real HS, college and NFL hashes. Routes, blocks, motion and curves in a few clicks.
+              Flip, undo, snap.
             </p>
           </article>
-          <article>
-            <h2>A playbook you can search</h2>
-            <p>
-              Folders, tags and search by name or formation. Back up your whole library to a single
-              file.
-            </p>
-          </article>
-          <article>
-            <h2>Call sheets and wristbands</h2>
-            <p>
-              1, 2, 4 or 8 plays per page, numbered your way. Print them, or export a PDF or
-              PowerPoint deck.
-            </p>
-          </article>
+        </section>
+
+        <section className={styles.privacy} aria-labelledby="powerpoint">
+          <h2 id="powerpoint">Use Playdesk inside PowerPoint</h2>
+          <ol className={styles.steps}>
+            <li>
+              Download the{' '}
+              <a href="/office/manifest.xml" download="playdesk-manifest.xml">
+                Playdesk add-in file
+              </a>
+              .
+            </li>
+            <li>
+              In PowerPoint, go to{' '}
+              <b>Home → Add-ins → More Add-ins → My Add-ins → Upload My Add-in</b> and choose that
+              file. (Your school’s IT admin can also deploy it to every coach.)
+            </li>
+            <li>
+              Click <b>Playdesk</b> on the Home tab. Draw or open a play and press{' '}
+              <b>Insert into PowerPoint</b>.
+            </li>
+          </ol>
+          <p>
+            Visio: download plays as .vsdx from the editor, Library or Sheets and open them in
+            Visio.
+          </p>
         </section>
 
         <section className={styles.privacy} aria-labelledby="privacy">

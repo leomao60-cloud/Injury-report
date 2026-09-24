@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { EXAMPLE_PLAYS } from '../model';
 import type { SheetDoc } from '../sheets/types';
+import { sanitizeBranding, type Branding } from './branding';
 import { DEFAULT_FOLDERS, type LibraryBackup, type SavedPlay } from './types';
 import { validateBackup } from './validate';
 
@@ -63,6 +64,13 @@ export async function setFolders(folders: string[]) {
   await setMeta('folders', folders);
 }
 
+export async function getBranding(): Promise<Branding> {
+  return sanitizeBranding(await getMeta('branding'));
+}
+export async function setBranding(b: Branding) {
+  await setMeta('branding', sanitizeBranding(b));
+}
+
 /** Add the starter plays the first time the library opens. */
 export async function seedExamples(): Promise<boolean> {
   if (await getMeta<boolean>('seeded')) return false;
@@ -94,6 +102,7 @@ export async function exportBackup(): Promise<LibraryBackup> {
     plays: await listPlays(),
     folders: await getFolders(),
     sheets: await listSheets(),
+    branding: await getBranding(),
   };
 }
 
@@ -112,6 +121,7 @@ export async function importBackup(raw: unknown): Promise<{ plays: number; sheet
   ];
   await tx.objectStore('meta').put(merged, 'folders');
   await tx.objectStore('meta').put(true, 'seeded');
+  if (backup.branding) await tx.objectStore('meta').put(backup.branding, 'branding');
   await tx.done;
   return { plays: backup.plays.length, sheets: backup.sheets.length };
 }

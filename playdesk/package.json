@@ -5,18 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/make-manifest.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "manifest": "node scripts/make-manifest.mjs",
+    "predev": "node scripts/make-manifest.mjs public/office"
   },
   "dependencies": {
     "idb": "^8.0.3",
     "jspdf": "^4.2.1",
+    "jszip": "^3.10.2",
     "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -44,5 +47,8 @@
   },
   "overrides": {
     "image-size": "^2.0.4"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

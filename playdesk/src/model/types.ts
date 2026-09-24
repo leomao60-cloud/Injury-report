@@ -32,7 +32,11 @@ export interface PlayLine {
   /** Break points after the start. The start is derived with lineStart(). */
   points: Point[];
   color?: string;
+  /** Draw a smooth curve through the points instead of straight breaks. */
+  curved?: boolean;
 }
+
+export type DefenseId = '43-cover2' | '34-cover3' | '425-cover1';
 
 export type FormationId = 'doubles' | 'trips-rt' | 'bunch-rt' | 'i-rt' | 'empty-3x2';
 
@@ -45,6 +49,8 @@ export interface Play {
   ballX: number;
   formation: FormationId;
   showDefense: boolean;
+  /** Defensive front used when the defense is shown. Defaults to 4-3 Cover 2. */
+  defense?: DefenseId;
   players: Player[];
   lines: PlayLine[];
 }

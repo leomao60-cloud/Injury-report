@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { newId, type Play } from '../model';
 import type { SheetDoc } from '../sheets/types';
+import { DEFAULT_BRANDING, type Branding } from './branding';
 import * as db from './db';
 import type { SavedPlay } from './types';
 
@@ -9,7 +10,11 @@ interface LibraryState {
   plays: SavedPlay[];
   folders: string[];
   sheets: SheetDoc[];
+  branding: Branding;
+  /** Branding is read from storage once; after that the store is the source of truth. */
+  brandingLoaded: boolean;
   error: string | null;
+  setBranding: (b: Branding) => Promise<void>;
   refresh: () => Promise<void>;
   /** Save (insert or update) the play under its own id. */
   save: (play: Play, folder?: string) => Promise<void>;
@@ -38,16 +43,25 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   plays: [],
   folders: [],
   sheets: [],
+  branding: DEFAULT_BRANDING,
+  brandingLoaded: false,
   error: null,
+  setBranding: async (b) => {
+    set({ branding: b, brandingLoaded: true });
+    await guard(set, () => db.setBranding(b));
+  },
   refresh: async () => {
     await guard(set, async () => {
       await db.seedExamples();
-      const [plays, folders, sheets] = await Promise.all([
+      const [plays, folders, sheets, branding] = await Promise.all([
         db.listPlays(),
         db.getFolders(),
         db.listSheets(),
+        db.getBranding(),
       ]);
       set({ plays, folders, sheets, loaded: true, error: null });
+      // Never replace branding the coach has already started editing with an older stored copy.
+      if (!get().brandingLoaded) set({ branding, brandingLoaded: true });
     });
   },
   save: async (play, folder) => {

@@ -9,8 +9,11 @@ export function playSvgMarkup(
   style: FieldStyle,
   window: ViewWindow,
   numbers = true,
+  offenseFill?: string,
 ): string {
-  return renderToStaticMarkup(createElement(PlayDiagram, { play, style, window, numbers }));
+  return renderToStaticMarkup(
+    createElement(PlayDiagram, { play, style, window, numbers, offenseFill }),
+  );
 }
 
 export function playSvgElement(
@@ -18,9 +21,10 @@ export function playSvgElement(
   style: FieldStyle,
   window: ViewWindow,
   numbers = true,
+  offenseFill?: string,
 ): SVGSVGElement {
   const doc = new DOMParser().parseFromString(
-    playSvgMarkup(play, style, window, numbers),
+    playSvgMarkup(play, style, window, numbers, offenseFill),
     'image/svg+xml',
   );
   return doc.documentElement as unknown as SVGSVGElement;
