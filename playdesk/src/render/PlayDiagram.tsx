@@ -1,5 +1,5 @@
 import type { ReactNode, SVGProps } from 'react';
-import { linePath, type FieldStyle, type Play } from '../model';
+import { drawnPath, type FieldStyle, type Play } from '../model';
 import { Field } from './Field';
 import { DEFAULT_WINDOW, viewBoxFor, type ViewWindow } from './geometry';
 import { PlayLineView } from './PlayLineView';
@@ -52,7 +52,7 @@ export function PlayDiagram({
           <PlayLineView
             key={line.id}
             line={line}
-            points={linePath(play, line)}
+            points={drawnPath(play, line)}
             type={line.type}
             color={line.color}
             style={style}

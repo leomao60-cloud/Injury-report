@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLibraryStore } from '../library/libraryStore';
+import { usePlay } from '../store/playStore';
 import { filterPlays } from '../library/search';
 import {
   formatNumberList,
@@ -51,7 +52,11 @@ function Seg<T extends string | number>({
 }
 
 export function SheetsScreen() {
-  const { plays, folders, sheets, saveSheet, removeSheet } = useLibraryStore();
+  const { plays, folders, sheets, saveSheet, removeSheet, save } = useLibraryStore();
+  const editorPlay = usePlay();
+  const editorSaved = plays.find((p) => p.id === editorPlay.id);
+  const editorUnsaved =
+    !editorSaved || JSON.stringify(editorSaved.play) !== JSON.stringify(editorPlay);
   const [sheet, setSheet] = useState<SheetDoc>(() => newSheet());
   const [folder, setFolder] = useState<string>('');
   const [query, setQuery] = useState('');
@@ -359,6 +364,23 @@ export function SheetsScreen() {
         </Group>
 
         <Group title="Choose plays">
+          <p className="small muted">Only plays saved to your library can go on a sheet.</p>
+          {editorUnsaved && (
+            <div className={styles.notice} role="status" data-testid="unsaved-notice">
+              <span className="small">
+                {editorSaved
+                  ? `“${editorPlay.name}” has changes in the editor that aren’t saved yet.`
+                  : `“${editorPlay.name}”, the play open in the editor, isn’t in your library yet.`}
+              </span>
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={() => void save(editorPlay)}
+              >
+                {editorSaved ? 'Save changes' : 'Save it to the library'}
+              </button>
+            </div>
+          )}
           <div className={styles.row}>
             <select
               className="select"

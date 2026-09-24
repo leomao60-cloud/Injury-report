@@ -76,6 +76,11 @@
 }
 
 @media (max-width: 720px) {
+  /* On phones the panel sits under the field: show the selected item first. */
+  .selection {
+    order: -1;
+    background: var(--surface-2);
+  }
   .panel {
     border-left: 0;
     border-top: 1px solid var(--border);

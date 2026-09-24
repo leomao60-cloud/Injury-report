@@ -53,11 +53,12 @@ type Level = 'hs' | 'college' | 'nfl';
 type FieldStyle = 'turf' | 'whiteboard';
 type BallOn = 'left' | 'middle' | 'right';
 interface Player { id; side: 'offense' | 'defense'; label (≤3 chars); shape: 'circle' | 'square' | 'letter'; x; y; color? }
-interface PlayLine { id; playerId; type: 'route' | 'block' | 'motion'; points: Point[] /* start excluded */; color? }
-interface Play { id; name; level; ballOn; ballX; formation; showDefense; players; lines }
+interface PlayLine { id; playerId; type: 'route' | 'block' | 'motion'; points: Point[] /* start excluded */; color?; curved? }
+interface Play { id; name; level; ballOn; ballX; formation; showDefense; defense?: '43-cover2' | '34-cover3' | '425-cover1'; players; lines }
 ```
 
 A line's start is derived with `lineStart()`: routes and blocks start where the player's motion ends.
+Renderers and exporters draw `drawnPath()`, which smooths curved lines into a polyline.
 Hash widths: HS 53′4″, college 40′, NFL 18′6″.
 
 ## Rules

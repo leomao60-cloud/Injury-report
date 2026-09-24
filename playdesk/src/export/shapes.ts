@@ -1,4 +1,4 @@
-import { FIELD_WIDTH, hashXs, linePath, type FieldStyle, type Play, type Point } from '../model';
+import { FIELD_WIDTH, hashXs, drawnPath, type FieldStyle, type Play, type Point } from '../model';
 import {
   BAR_HALF,
   DIAGRAM_COLORS,
@@ -182,7 +182,7 @@ export function diagramShapes(
   });
 
   for (const line of play.lines) {
-    const pts = linePath(play, line);
+    const pts = drawnPath(play, line);
     const color = solidHex(line.color ?? c.line);
     const w = ptW(0.22);
     for (let i = 1; i < pts.length; i++) {

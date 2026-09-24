@@ -2,7 +2,8 @@ import { useCallback, useRef, type PointerEvent } from 'react';
 import {
   addLine,
   getPlayer,
-  linePath,
+  drawnPath,
+  moveLinePoint,
   movePlayer,
   removeLine,
   removeLinesFor,
@@ -16,12 +17,10 @@ import { describeSpot, draftStart, drawClick, type ClickTarget } from './drawing
 import { HINTS } from './hints';
 import styles from './FieldEditor.module.css';
 
-interface DragState {
-  playerId: string;
-  pointerId: number;
-  grab: Point;
-  moved: boolean;
-}
+/** What is being dragged: a player, or one break point of a line. */
+type DragState = { pointerId: number; grab: Point } & (
+  { kind: 'player'; playerId: string } | { kind: 'point'; lineId: string; index: number }
+);
 
 export function FieldEditor() {
   const play = usePlay();
@@ -62,13 +61,30 @@ export function FieldEditor() {
     const pos = toYards(e);
 
     if (tool === 'move') {
+      const handle = (e.target as Element).closest('[data-handle-index]');
+      if (handle && selection?.kind === 'line') {
+        const index = Number(handle.getAttribute('data-handle-index'));
+        const pt = play.lines.find((l) => l.id === selection.id)?.points[index];
+        if (pt) {
+          drag.current = {
+            kind: 'point',
+            lineId: selection.id,
+            index,
+            pointerId: e.pointerId,
+            grab: { x: pos.x - pt.x, y: pos.y - pt.y },
+          };
+          svgRef.current?.setPointerCapture(e.pointerId);
+          store.beginDrag();
+        }
+        return;
+      }
       if (target.kind === 'player') {
         ed.select({ kind: 'player', id: target.player.id });
         drag.current = {
+          kind: 'player',
           playerId: target.player.id,
           pointerId: e.pointerId,
           grab: { x: pos.x - target.player.x, y: pos.y - target.player.y },
-          moved: false,
         };
         svgRef.current?.setPointerCapture(e.pointerId);
         store.beginDrag();
@@ -108,8 +124,13 @@ export function FieldEditor() {
     const d = drag.current;
     if (d && d.pointerId === e.pointerId) {
       const to = maybeSnap({ x: pos.x - d.grab.x, y: pos.y - d.grab.y });
-      d.moved = true;
-      usePlayStore.getState().dragTo((p) => movePlayer(p, d.playerId, to));
+      usePlayStore
+        .getState()
+        .dragTo((p) =>
+          d.kind === 'player'
+            ? movePlayer(p, d.playerId, to)
+            : moveLinePoint(p, d.lineId, d.index, to),
+        );
       return;
     }
     if (draft) useEditorStore.getState().setCursor(maybeSnap(pos));
@@ -135,6 +156,8 @@ export function FieldEditor() {
   const previewFrom = draftPoints[draftPoints.length - 1];
   const previewSegment = draft && cursor && previewFrom ? { from: previewFrom, to: cursor } : null;
   const clickableLines = tool === 'move' || tool === 'erase';
+  const selectedLine =
+    selection?.kind === 'line' ? play.lines.find((l) => l.id === selection.id) : undefined;
 
   return (
     <div className={styles.wrap}>
@@ -160,7 +183,7 @@ export function FieldEditor() {
               <PlayLineView
                 key={line.id}
                 line={line}
-                points={linePath(play, line)}
+                points={drawnPath(play, line)}
                 type={line.type}
                 color={line.color}
                 style={fieldStyle}
@@ -194,11 +217,32 @@ export function FieldEditor() {
               />
             ))}
           </g>
+          {selectedLine && tool === 'move' && (
+            <g data-testid="point-handles">
+              {selectedLine.points.map((pt, i) => (
+                <circle
+                  key={i}
+                  data-handle-index={i}
+                  cx={pt.x}
+                  cy={-pt.y}
+                  r={0.55}
+                  fill="#ff8a00"
+                  stroke="#ffffff"
+                  strokeWidth={0.15}
+                  style={{ cursor: 'move' }}
+                />
+              ))}
+            </g>
+          )}
         </svg>
       </div>
       <div className={styles.status}>
         <p className={styles.hint} data-testid="hint">
-          {draft ? HINTS.drawing : HINTS[tool]}
+          {draft
+            ? HINTS.drawing
+            : selectedLine && tool === 'move'
+              ? HINTS.lineSelected
+              : HINTS[tool]}
         </p>
         <p className={styles.readout} data-testid="readout" aria-live="polite">
           {readout}

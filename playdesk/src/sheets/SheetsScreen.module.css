@@ -58,6 +58,17 @@
   color: var(--text-2);
 }
 
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
 .warn {
   color: var(--danger);
   font-size: 13px;

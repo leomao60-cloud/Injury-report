@@ -1,4 +1,4 @@
-import { FORMATIONS, type Play, type Player, type PlayLine, type Point } from '../model';
+import { DEFENSES, FORMATIONS, type Play, type Player, type PlayLine, type Point } from '../model';
 import { DEFAULT_WRISTBAND, type SheetDoc } from '../sheets/types';
 import type { LibraryBackup, SavedPlay } from './types';
 
@@ -68,6 +68,7 @@ function line(v: unknown): PlayLine {
   };
   const c = color(v.color);
   if (c) l.color = c;
+  if (v.curved === true) l.curved = true;
   return l;
 }
 
@@ -86,6 +87,14 @@ export function validatePlay(v: unknown): Play {
       FORMATIONS.map((f) => f.id),
     ),
     showDefense: Boolean(v.showDefense),
+    ...(v.defense === undefined
+      ? {}
+      : {
+          defense: oneOf(
+            v.defense,
+            DEFENSES.map((f) => f.id),
+          ),
+        }),
     players,
     lines: arr(v.lines, MAX_LINES)
       .map(line)

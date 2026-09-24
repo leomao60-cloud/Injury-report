@@ -18,6 +18,11 @@ import {
   type FormationId,
   type Level,
   type LineType,
+  DEFENSES,
+  addPlayer,
+  placeDefense,
+  removePlayer,
+  type DefenseId,
 } from '../model';
 import { SaveControls } from '../library/SaveControls';
 import { useEditorStore } from '../store/editorStore';
@@ -37,10 +42,18 @@ const COLOR_SWATCHES = [
   '#7b2cbf',
 ];
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   const id = `sec-${title.toLowerCase().replace(/\W+/g, '-')}`;
   return (
-    <section className={styles.section} aria-labelledby={id}>
+    <section className={`${styles.section} ${className ?? ''}`} aria-labelledby={id}>
       <h2 id={id} className={styles.heading}>
         {title}
       </h2>
@@ -126,7 +139,7 @@ function SelectionSection() {
 
   if (!selection) {
     return (
-      <Section title="Selection">
+      <Section title="Selection" className={styles.selection}>
         <p className="muted small">
           Nothing selected. With the Move tool, click a player or a line.
         </p>
@@ -139,7 +152,7 @@ function SelectionSection() {
     if (!p) return null;
     const lineCount = play.lines.filter((l) => l.playerId === p.id).length;
     return (
-      <Section title="Selection">
+      <Section title="Selection" className={styles.selection}>
         <p className="small muted">{p.side === 'offense' ? 'Offensive player' : 'Defender'}</p>
         <label className={styles.field}>
           <span>Label</span>
@@ -170,6 +183,16 @@ function SelectionSection() {
         >
           Erase his lines ({lineCount})
         </button>
+        <button
+          type="button"
+          className="btn btn-sm btn-danger"
+          onClick={() => {
+            apply((pl) => removePlayer(pl, p.id));
+            useEditorStore.getState().select(null);
+          }}
+        >
+          Delete player
+        </button>
       </Section>
     );
   }
@@ -178,7 +201,7 @@ function SelectionSection() {
   if (!line) return null;
   const owner = getPlayer(play, line.playerId);
   return (
-    <Section title="Selection">
+    <Section title="Selection" className={styles.selection}>
       <p className="small muted">
         {line.type[0]!.toUpperCase() + line.type.slice(1)} for {owner?.label || 'player'}
       </p>
@@ -195,6 +218,16 @@ function SelectionSection() {
           onChange={(type) => apply((pl) => updateLine(pl, line.id, { type }))}
         />
       </div>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={Boolean(line.curved)}
+          onChange={(e) => apply((pl) => updateLine(pl, line.id, { curved: e.target.checked }))}
+          data-testid="line-curved"
+        />
+        Curved (smooth through the breaks)
+      </label>
+      <p className="small muted">Drag the orange dots on the field to move a break.</p>
       <div className={styles.field}>
         <span>Color</span>
         <Swatches
@@ -277,6 +310,18 @@ export function SidePanel() {
     dropStaleSelection();
   };
 
+  const addAndSelect = (side: 'offense' | 'defense') => {
+    finishLine();
+    let id = '';
+    apply((p) => {
+      const r = addPlayer(p, side);
+      id = r.id;
+      return r.play;
+    });
+    useEditorStore.getState().setTool('move');
+    useEditorStore.getState().select({ kind: 'player', id });
+  };
+
   return (
     <aside className={styles.panel} aria-label="Play settings">
       <Section title="Play">
@@ -354,6 +399,24 @@ export function SidePanel() {
         >
           Reset to formation
         </button>
+        <div className={styles.row}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => addAndSelect('offense')}
+            data-testid="add-offense"
+          >
+            Add player
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => addAndSelect('defense')}
+            data-testid="add-defense"
+          >
+            Add defender
+          </button>
+        </div>
       </Section>
 
       <Section title="Ball on">
@@ -374,8 +437,26 @@ export function SidePanel() {
             onChange={(e) => act((p) => setShowDefense(p, e.target.checked))}
             data-testid="show-defense"
           />
-          Show defense (4-3, two-deep)
+          Show defense
         </label>
+        <select
+          className="select"
+          aria-label="Defense"
+          value={play.defense ?? '43-cover2'}
+          disabled={!play.showDefense}
+          onChange={(e) => act((p) => placeDefense(p, e.target.value as DefenseId))}
+        >
+          {DEFENSES.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+        {play.showDefense && (
+          <button type="button" className="btn btn-sm" onClick={() => act((p) => placeDefense(p))}>
+            Re-align defense
+          </button>
+        )}
       </Section>
 
       <Section title="Field">
