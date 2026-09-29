@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { exampleInsideZone, exampleJetSweep, exampleSmash } from '../model';
+import {
+  TEMPLATES,
+  exampleInsideZone,
+  exampleJetSweep,
+  exampleSmash,
+  playFromTemplate,
+} from '../model';
 import { DEFAULT_WINDOW } from '../render';
 import { fitAspect } from './fit';
 import { diagramShapes, solidHex } from './shapes';
@@ -50,4 +56,23 @@ describe('PowerPoint shapes', () => {
     const r = fitAspect({ x: 0, y: 0, w: 10, h: 2 }, 2);
     expect(r).toEqual({ x: 3, y: 0, w: 4, h: 2 });
   });
+
+  it.each(TEMPLATES.map((t) => [t.name, t] as const))(
+    '%s fits its box on its own field (12-man, flag, deep punt formations)',
+    (_name, t) => {
+      const play = playFromTemplate(t);
+      const shapes = diagramShapes(play, 'whiteboard', DEFAULT_WINDOW, box);
+      expect(
+        shapes.filter((s) => s.name?.startsWith('Player') || s.name?.startsWith('Defender')),
+      ).toHaveLength(play.players.length);
+      for (const s of shapes) {
+        const xs = s.kind === 'line' ? [s.x1, s.x2] : [s.x, s.x + s.w];
+        const ys = s.kind === 'line' ? [s.y1, s.y2] : [s.y, s.y + s.h];
+        for (const x of xs) expect(x).toBeGreaterThanOrEqual(box.x - 1e-6);
+        for (const x of xs) expect(x).toBeLessThanOrEqual(box.x + box.w + 1e-6);
+        for (const y of ys) expect(y).toBeGreaterThanOrEqual(box.y - 1e-6);
+        for (const y of ys) expect(y).toBeLessThanOrEqual(box.y + box.h + 1e-6);
+      }
+    },
+  );
 });

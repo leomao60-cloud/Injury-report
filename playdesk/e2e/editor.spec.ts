@@ -124,7 +124,7 @@ test('erase a line and select players to edit them', async ({ page }) => {
 test('formation, ball spot, defense and level', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Formation' }).selectOption('trips-rt');
   await page.getByRole('button', { name: 'Left hash' }).click();
-  await page.getByRole('button', { name: 'NFL' }).click();
+  await page.getByTestId('level').selectOption('nfl');
   await page.getByTestId('show-defense').check();
   await expect(page.locator('[data-side=defense]')).toHaveCount(11);
   for (const id of ['x', 'y', 'z', 'h']) {
@@ -132,7 +132,7 @@ test('formation, ball spot, defense and level', async ({ page }) => {
     expect(p.x).toBeGreaterThanOrEqual(1);
     expect(p.x).toBeLessThanOrEqual(160 / 3 - 1);
   }
-  await page.getByRole('button', { name: 'High school' }).click();
+  await page.getByTestId('level').selectOption('hs');
   const x = await playerYards(page, 'x');
   expect(x.x).toBeGreaterThanOrEqual(1);
 });

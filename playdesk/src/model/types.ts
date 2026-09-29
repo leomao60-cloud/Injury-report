@@ -8,7 +8,9 @@ export interface Point {
   y: number;
 }
 
-export type Level = 'hs' | 'college' | 'nfl';
+export type Level = 'hs' | 'college' | 'nfl' | 'cfl' | 'flag';
+/** How many players a side: 11-man, 12-man (Canadian) or 5v5 flag. */
+export type GameType = 'eleven' | 'twelve' | 'flag5';
 export type FieldStyle = 'turf' | 'whiteboard';
 export type BallOn = 'left' | 'middle' | 'right';
 export type Side = 'offense' | 'defense';
@@ -36,9 +38,18 @@ export interface PlayLine {
   curved?: boolean;
 }
 
-export type DefenseId = '43-cover2' | '34-cover3' | '425-cover1';
+export type DefenseId =
+  | '43-cover2'
+  | '34-cover3'
+  | '425-cover1'
+  | '416-cover4'
+  | '62-goalline'
+  | 'cfl-43'
+  | 'flag-zone'
+  | 'flag-man';
 
-export type FormationId = 'doubles' | 'trips-rt' | 'bunch-rt' | 'i-rt' | 'empty-3x2';
+/** An id from FORMATIONS, or 'custom' for plays that don't come from a base formation (e.g. special teams). */
+export type FormationId = string;
 
 export interface Play {
   id: string;

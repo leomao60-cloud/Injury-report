@@ -1,12 +1,14 @@
-import { FIELD_WIDTH, hashXs, drawnPath, type FieldStyle, type Play, type Point } from '../model';
 import {
-  BAR_HALF,
-  DIAGRAM_COLORS,
-  LOS_YARD_LINE,
-  PLAYER_RADIUS,
-  viewBoxFor,
-  type ViewWindow,
-} from '../render';
+  FIELD_SPECS,
+  fieldWidth,
+  hasHashes,
+  hashXs,
+  drawnPath,
+  type FieldStyle,
+  type Play,
+  type Point,
+} from '../model';
+import { BAR_HALF, DIAGRAM_COLORS, PLAYER_RADIUS, playView, type ViewWindow } from '../render';
 import type { Rect } from '../sheets/layout';
 
 /**
@@ -100,7 +102,8 @@ export function diagramShapes(
   offenseFill?: string,
 ): Shape[] {
   const c = DIAGRAM_COLORS[style];
-  const vb = viewBoxFor(window);
+  const { window: win, vb } = playView(play, window);
+  const FIELD_WIDTH = fieldWidth(play.level);
   const s = Math.min(box.w / vb.width, box.h / vb.height);
   const ox = box.x + (box.w - vb.width * s) / 2 - vb.x * s;
   const oy = box.y + (box.h - vb.height * s) / 2 - vb.y * s;
@@ -122,8 +125,8 @@ export function diagramShapes(
   });
 
   const fieldLine = solidHex(c.fieldLine);
-  for (let y = Math.ceil(-window.backfield); y <= Math.floor(window.downfield); y++) {
-    if ((LOS_YARD_LINE + y) % 5 === 0) {
+  for (let y = Math.ceil(-win.backfield); y <= Math.floor(win.downfield); y++) {
+    if ((FIELD_SPECS[play.level].losYardLine + y) % 5 === 0) {
       shapes.push({
         kind: 'line',
         x1: X(0),
@@ -137,9 +140,9 @@ export function diagramShapes(
     }
   }
   const { left, right } = hashXs(play.level);
-  for (const hx of [left, right]) {
-    for (let y = Math.ceil(-window.backfield); y <= Math.floor(window.downfield); y++) {
-      if ((LOS_YARD_LINE + y) % 5 === 0) continue;
+  for (const hx of hasHashes(play.level) ? [left, right] : []) {
+    for (let y = Math.ceil(-win.backfield); y <= Math.floor(win.downfield); y++) {
+      if ((FIELD_SPECS[play.level].losYardLine + y) % 5 === 0) continue;
       shapes.push({
         kind: 'line',
         x1: X(hx - 0.33),
@@ -155,9 +158,9 @@ export function diagramShapes(
   shapes.push({
     kind: 'line',
     x1: X(0),
-    y1: Y(-window.backfield),
+    y1: Y(-win.backfield),
     x2: X(0),
-    y2: Y(window.downfield),
+    y2: Y(win.downfield),
     color: fieldLine,
     width: ptW(0.3),
     name: 'Sideline',
@@ -165,9 +168,9 @@ export function diagramShapes(
   shapes.push({
     kind: 'line',
     x1: X(FIELD_WIDTH),
-    y1: Y(-window.backfield),
+    y1: Y(-win.backfield),
     x2: X(FIELD_WIDTH),
-    y2: Y(window.downfield),
+    y2: Y(win.downfield),
     color: fieldLine,
     width: ptW(0.3),
     name: 'Sideline',

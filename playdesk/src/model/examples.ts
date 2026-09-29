@@ -2,10 +2,10 @@ import { round } from './field';
 import { addLine, createPlay, getPlayer } from './play';
 import type { LineType, Play } from './types';
 
-type Rel = [dx: number, dy: number];
+export type Rel = [dx: number, dy: number];
 
 /** Add a line using offsets from the start of the line (the player, or the end of his motion). */
-function draw(play: Play, playerId: string, type: LineType, rel: Rel[]): Play {
+export function draw(play: Play, playerId: string, type: LineType, rel: Rel[]): Play {
   const p = getPlayer(play, playerId);
   if (!p) return play;
   const motion = play.lines.find((l) => l.playerId === playerId && l.type === 'motion');

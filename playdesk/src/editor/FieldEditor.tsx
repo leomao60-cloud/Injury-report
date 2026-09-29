@@ -1,4 +1,4 @@
-import { useCallback, useRef, type PointerEvent } from 'react';
+import { useCallback, useRef, type CSSProperties, type PointerEvent } from 'react';
 import {
   addLine,
   getPlayer,
@@ -10,7 +10,7 @@ import {
   snapToGrid,
   type Point,
 } from '../model';
-import { Field, PlayLineView, PlayerMarker, viewBoxFor, DEFAULT_WINDOW } from '../render';
+import { Field, PlayLineView, PlayerMarker, playView, DEFAULT_WINDOW } from '../render';
 import { TOOL_LINE_TYPE, useEditorStore } from '../store/editorStore';
 import { usePlay, usePlayStore } from '../store/playStore';
 import { describeSpot, draftStart, drawClick, type ClickTarget } from './drawing';
@@ -27,7 +27,8 @@ export function FieldEditor() {
   const { tool, selection, draft, cursor, snap, fieldStyle } = useEditorStore();
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<DragState | null>(null);
-  const vb = viewBoxFor(DEFAULT_WINDOW);
+  // Grows in 5-yard steps when players go deep (punt, kickoff return) so the view rarely changes.
+  const { window: win, vb } = playView(play, DEFAULT_WINDOW, 5);
 
   const toYards = useCallback((e: { clientX: number; clientY: number }): Point => {
     const svg = svgRef.current;
@@ -168,6 +169,7 @@ export function FieldEditor() {
           data-tool={tool}
           data-testid="field-editor"
           viewBox={vb.attr}
+          style={{ '--field-aspect': vb.width / vb.height } as CSSProperties}
           preserveAspectRatio="xMidYMid meet"
           role="application"
           aria-label={`Play field for ${play.name}. ${HINTS[tool]}`}
@@ -177,7 +179,7 @@ export function FieldEditor() {
           onPointerCancel={endDrag}
           onPointerLeave={() => !drag.current && useEditorStore.getState().setCursor(null)}
         >
-          <Field level={play.level} style={fieldStyle} />
+          <Field level={play.level} style={fieldStyle} window={win} />
           <g>
             {play.lines.map((line) => (
               <PlayLineView

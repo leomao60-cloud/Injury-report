@@ -1,6 +1,13 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
-  FORMATIONS,
+  CUSTOM_FORMATION,
+  DEFAULT_DEFENSE,
+  defensesFor,
+  findFormation,
+  formationsFor,
+  gameFor,
+  hasHashes,
+  type Formation,
   HASH_WIDTH_NOTE,
   LEVEL_NAMES,
   applyFormation,
@@ -18,7 +25,6 @@ import {
   type FormationId,
   type Level,
   type LineType,
-  DEFENSES,
   addPlayer,
   placeDefense,
   removePlayer,
@@ -30,6 +36,7 @@ import { useLibraryStore } from '../library/libraryStore';
 import { PLAY_FILE_EXT, parsePlayFile, readJsonFile, serializePlayFile } from '../library/playFile';
 import { downloadBlob, safeFilename } from '../export/download';
 import { useOfficeHost } from '../office/office';
+import { navigate } from '../app/router';
 import { useEditorStore } from '../store/editorStore';
 import { usePlay, usePlayStore } from '../store/playStore';
 import { canRedo, canUndo } from '../store/history';
@@ -400,6 +407,12 @@ function ExportSection() {
   );
 }
 
+function groupFormations(list: Formation[]): [string, Formation[]][] {
+  const map = new Map<string, Formation[]>();
+  for (const f of list) map.set(f.group, [...(map.get(f.group) ?? []), f]);
+  return [...map.entries()];
+}
+
 export function SidePanel() {
   const play = usePlay();
   const history = usePlayStore((s) => s.history);
@@ -411,6 +424,10 @@ export function SidePanel() {
     apply(fn, key);
     dropStaleSelection();
   };
+
+  const game = gameFor(play.level);
+  const isCustom = !findFormation(play.formation);
+  const groups = groupFormations(formationsFor(game));
 
   const addAndSelect = (side: 'offense' | 'defense') => {
     finishLine();
@@ -483,24 +500,39 @@ export function SidePanel() {
           <span className="visually-hidden">Formation</span>
           <select
             className="select"
-            value={play.formation}
+            value={isCustom ? CUSTOM_FORMATION : play.formation}
             aria-label="Formation"
             onChange={(e) => act((p) => applyFormation(p, e.target.value as FormationId))}
           >
-            {FORMATIONS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
+            {isCustom && (
+              <option value={CUSTOM_FORMATION} disabled>
+                Custom (from a template)
               </option>
+            )}
+            {groups.map(([group, list]) => (
+              <optgroup key={group} label={group}>
+                {list.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={() => act((p) => applyFormation(p, p.formation))}
-        >
-          Reset to formation
-        </button>
+        <div className={styles.row}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={isCustom}
+            onClick={() => act((p) => applyFormation(p, p.formation))}
+          >
+            Reset to formation
+          </button>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('formations')}>
+            More formations…
+          </button>
+        </div>
         <div className={styles.row}>
           <button
             type="button"
@@ -521,17 +553,19 @@ export function SidePanel() {
         </div>
       </Section>
 
-      <Section title="Ball on">
-        <Segmented<BallOn>
-          label="Ball on"
-          value={play.ballOn}
-          options={[
-            { value: 'left', label: 'Left hash' },
-            { value: 'middle', label: 'Middle' },
-            { value: 'right', label: 'Right hash' },
-          ]}
-          onChange={(b) => act((p) => setBallSpot(p, b))}
-        />
+      <Section title={hasHashes(play.level) ? 'Ball on' : 'Defense'}>
+        {hasHashes(play.level) && (
+          <Segmented<BallOn>
+            label="Ball on"
+            value={play.ballOn}
+            options={[
+              { value: 'left', label: 'Left hash' },
+              { value: 'middle', label: 'Middle' },
+              { value: 'right', label: 'Right hash' },
+            ]}
+            onChange={(b) => act((p) => setBallSpot(p, b))}
+          />
+        )}
         <label className="check">
           <input
             type="checkbox"
@@ -544,11 +578,11 @@ export function SidePanel() {
         <select
           className="select"
           aria-label="Defense"
-          value={play.defense ?? '43-cover2'}
+          value={play.defense ?? DEFAULT_DEFENSE[game]}
           disabled={!play.showDefense}
           onChange={(e) => act((p) => placeDefense(p, e.target.value as DefenseId))}
         >
-          {DEFENSES.map((d) => (
+          {defensesFor(game).map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
             </option>
@@ -562,15 +596,26 @@ export function SidePanel() {
       </Section>
 
       <Section title="Field">
-        <Segmented<Level>
-          label="Level"
-          value={play.level}
-          options={(Object.keys(LEVEL_NAMES) as Level[]).map((l) => ({
-            value: l,
-            label: LEVEL_NAMES[l],
-          }))}
-          onChange={(l) => act((p) => setLevel(p, l))}
-        />
+        <label className={styles.field}>
+          <span>Level</span>
+          <select
+            className="select"
+            aria-label="Level"
+            value={play.level}
+            onChange={(e) => act((p) => setLevel(p, e.target.value as Level))}
+            data-testid="level"
+          >
+            <optgroup label="11-man">
+              <option value="hs">{LEVEL_NAMES.hs}</option>
+              <option value="college">{LEVEL_NAMES.college}</option>
+              <option value="nfl">{LEVEL_NAMES.nfl}</option>
+            </optgroup>
+            <optgroup label="Other games">
+              <option value="cfl">12-man (Canadian field)</option>
+              <option value="flag">{LEVEL_NAMES.flag}</option>
+            </optgroup>
+          </select>
+        </label>
         <p className="small muted">{HASH_WIDTH_NOTE[play.level]}</p>
         <Segmented
           label="Field style"

@@ -1,7 +1,7 @@
-import { FIELD_WIDTH, ballXFor, clamp, clampX, round } from './field';
+import { ballXFor, clamp, clampX, fieldWidth, gameFor, round } from './field';
 import { smoothPath } from './curve';
 import { placeDefense } from './defense';
-import { getFormation } from './formations';
+import { DEFAULT_FORMATION, findFormation, getFormation } from './formations';
 import { newId } from './ids';
 import type {
   BallOn,
@@ -15,9 +15,9 @@ import type {
   Side,
 } from './types';
 
-/** How far downfield/backfield a player can be placed. */
-export const MIN_Y = -15;
-export const MAX_Y = 25;
+/** How far backfield/downfield a player can be placed (a punter sits ~15 yards deep, kick returners 25 downfield). */
+export const MIN_Y = -16;
+export const MAX_Y = 26;
 
 export interface CreatePlayOptions {
   id?: string;
@@ -31,7 +31,7 @@ export interface CreatePlayOptions {
 export function createPlay(opts: CreatePlayOptions = {}): Play {
   const level = opts.level ?? 'hs';
   const ballOn = opts.ballOn ?? 'middle';
-  const formation = opts.formation ?? 'doubles';
+  const formation = opts.formation ?? DEFAULT_FORMATION[gameFor(level)];
   const ballX = ballXFor(level, ballOn);
   const f = getFormation(formation);
   const players: Player[] = f.spots.map((s) => ({
@@ -63,8 +63,9 @@ export function snapToGrid(p: Point, step = 0.5): Point {
   return { x: round(Math.round(p.x / step) * step), y: round(Math.round(p.y / step) * step) };
 }
 
-export function clampPoint(p: Point): Point {
-  return { x: round(clampX(p.x)), y: round(clamp(p.y, MIN_Y, MAX_Y)) };
+/** Keep a point on the field of the given level (inside the sidelines, within the playable depth). */
+export function clampPoint(p: Point, level: Level = 'hs'): Point {
+  return { x: round(clampX(p.x, fieldWidth(level))), y: round(clamp(p.y, MIN_Y, MAX_Y)) };
 }
 
 function shiftPoint(p: Point, dx: number, dy: number): Point {
@@ -111,7 +112,7 @@ export function drawnPath(play: Play, line: PlayLine): Point[] {
 export function movePlayer(play: Play, playerId: string, to: Point): Play {
   const player = getPlayer(play, playerId);
   if (!player) return play;
-  const target = clampPoint(to);
+  const target = clampPoint(to, play.level);
   const dx = round(target.x - player.x);
   const dy = round(target.y - player.y);
   if (dx === 0 && dy === 0) return play;
@@ -154,7 +155,7 @@ export function addLine(
     id: line.id ?? newId('line'),
     playerId: line.playerId,
     type: line.type,
-    points: line.points.map(clampPoint),
+    points: line.points.map((p) => clampPoint(p, play.level)),
     ...(line.color ? { color: line.color } : {}),
   };
   // A player has at most one motion.
@@ -209,9 +210,29 @@ export function setBallSpot(play: Play, ballOn: BallOn): Play {
   return moveBall({ ...play, ballOn }, ballXFor(play.level, ballOn));
 }
 
-/** Change the level; hash width changes, so the ball (and everything) shifts. */
+/**
+ * Change the level; hash width (and field width) changes, so the ball and everything shifts.
+ * Switching to a different game (11-man, 12-man, flag) resets the offense to that game's
+ * default formation and re-aligns the defense for it.
+ */
 export function setLevel(play: Play, level: Level): Play {
-  return moveBall({ ...play, level }, ballXFor(level, play.ballOn));
+  const game = gameFor(level);
+  if (game === gameFor(play.level)) {
+    return moveBall({ ...play, level }, ballXFor(level, play.ballOn));
+  }
+  const ballX = ballXFor(level, play.ballOn);
+  const moved: Play = {
+    ...play,
+    level,
+    ballX,
+    defense: undefined,
+    players: play.players.map((p) => ({ ...p, x: round(p.x - play.ballX + ballX) })),
+    lines: play.lines.map((l) => ({
+      ...l,
+      points: l.points.map((pt) => shiftPoint(pt, ballX - play.ballX, 0)),
+    })),
+  };
+  return applyFormation(moved, DEFAULT_FORMATION[game], { strict: true });
 }
 
 function moveBall(play: Play, newBallX: number): Play {
@@ -227,33 +248,70 @@ function moveBall(play: Play, newBallX: number): Play {
 
 /** Pull any player outside the sidelines back in; his lines move with him. Line points are clamped too. */
 export function keepInBounds(play: Play): Play {
+  const width = fieldWidth(play.level);
   let next = play;
   for (const p of play.players) {
-    const cx = round(clampX(p.x));
+    const cx = round(clampX(p.x, width));
     if (cx !== p.x) next = shiftPlayer(next, p.id, round(cx - p.x), 0);
   }
   const lines = next.lines.map((l) => {
-    if (l.points.every((pt) => pt.x >= 0 && pt.x <= FIELD_WIDTH)) return l;
+    if (l.points.every((pt) => pt.x >= 0 && pt.x <= width)) return l;
     return {
       ...l,
-      points: l.points.map((pt) => ({ ...pt, x: round(clamp(pt.x, 0, FIELD_WIDTH)) })),
+      points: l.points.map((pt) => ({ ...pt, x: round(clamp(pt.x, 0, width)) })),
     };
   });
   return lines === next.lines ? next : { ...next, lines };
 }
 
 /**
- * Reset the offense to a formation. Players keep their label and color;
- * their lines move with them. Defense is re-aligned if shown.
+ * Reset the offense to a formation. Players who were renamed or recolored keep their label and
+ * color; players still showing the old formation's label take the new one. Lines move with their
+ * players. Defense is re-aligned if shown.
+ *
+ * With `strict` (used when switching game type), offensive players the formation doesn't use are
+ * removed along with their lines.
  */
-export function applyFormation(play: Play, formationId: FormationId): Play {
+export function applyFormation(
+  play: Play,
+  formationId: FormationId,
+  opts: { strict?: boolean } = {},
+): Play {
   const f = getFormation(formationId);
+  const previous = findFormation(play.formation);
   let next: Play = { ...play, formation: formationId };
+  if (opts.strict || !previous || previous.game !== f.game) {
+    const keep = new Set(f.spots.map((sp) => sp.id));
+    const dropped = new Set(
+      next.players.filter((p) => p.side === 'offense' && !keep.has(p.id)).map((p) => p.id),
+    );
+    next = {
+      ...next,
+      players: next.players.filter((p) => !dropped.has(p.id)),
+      lines: next.lines.filter((l) => !dropped.has(l.playerId)),
+    };
+  }
   for (const spot of f.spots) {
     const target = { x: round(play.ballX + spot.dx), y: spot.y };
     const existing = getPlayer(next, spot.id);
     if (existing) {
       next = shiftPlayer(next, spot.id, round(target.x - existing.x), round(target.y - existing.y));
+      const oldLabel = previous?.spots.find((sp) => sp.id === spot.id)?.label;
+      const shape = spot.shape ?? 'circle';
+      if ((oldLabel !== undefined && existing.label === oldLabel) || existing.shape !== shape) {
+        next = {
+          ...next,
+          players: next.players.map((p) =>
+            p.id === spot.id
+              ? {
+                  ...p,
+                  shape,
+                  label: oldLabel !== undefined && p.label === oldLabel ? spot.label : p.label,
+                }
+              : p,
+          ),
+        };
+      }
     } else {
       next = {
         ...next,
@@ -289,7 +347,7 @@ export function addPlayer(play: Play, side: Side): { play: Play; id: string } {
     side,
     label: side === 'offense' ? 'A' : 'D',
     shape: side === 'offense' ? 'circle' : 'letter',
-    x: round(clampX(x)),
+    x: round(clampX(x, fieldWidth(play.level))),
     y,
   };
   return { play: { ...play, players: [...play.players, player] }, id };
@@ -306,7 +364,7 @@ export function removePlayer(play: Play, playerId: string): Play {
 
 /** Move one break point of a line. */
 export function moveLinePoint(play: Play, lineId: string, index: number, to: Point): Play {
-  const target = clampPoint(to);
+  const target = clampPoint(to, play.level);
   return {
     ...play,
     lines: play.lines.map((l) =>

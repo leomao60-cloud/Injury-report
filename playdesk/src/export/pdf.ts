@@ -76,7 +76,7 @@ export async function buildSheetPdf(
         );
         const box = fitAspect(
           { x: r.x + 0.02, y: r.y + TITLE_H + 0.02, w: r.w - 0.04, h: r.h - TITLE_H - 0.04 },
-          aspect(SHEET_WINDOW),
+          aspect(item.play, SHEET_WINDOW),
         );
         const svg = playSvgElement(
           item.play,

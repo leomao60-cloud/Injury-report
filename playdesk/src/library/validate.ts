@@ -1,4 +1,13 @@
-import { DEFENSES, FORMATIONS, type Play, type Player, type PlayLine, type Point } from '../model';
+import {
+  CUSTOM_FORMATION,
+  DEFENSES,
+  FORMATIONS,
+  LEVELS,
+  type Play,
+  type Player,
+  type PlayLine,
+  type Point,
+} from '../model';
 import { DEFAULT_WRISTBAND, type SheetDoc } from '../sheets/types';
 import { sanitizeBranding } from './branding';
 import type { LibraryBackup, SavedPlay } from './types';
@@ -80,13 +89,10 @@ export function validatePlay(v: unknown): Play {
   return {
     id: str(v.id, 60),
     name: str(v.name, 80),
-    level: oneOf(v.level, ['hs', 'college', 'nfl'] as const),
+    level: oneOf(v.level, LEVELS),
     ballOn: oneOf(v.ballOn, ['left', 'middle', 'right'] as const),
     ballX: num(v.ballX, 0, 60),
-    formation: oneOf(
-      v.formation,
-      FORMATIONS.map((f) => f.id),
-    ),
+    formation: oneOf(v.formation, [...FORMATIONS.map((f) => f.id), CUSTOM_FORMATION]),
     showDefense: Boolean(v.showDefense),
     ...(v.defense === undefined
       ? {}

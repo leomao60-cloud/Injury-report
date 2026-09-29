@@ -18,7 +18,7 @@
 .svg {
   --field-aspect: 1.8444;
   display: block;
-  aspect-ratio: 55.333 / 30;
+  aspect-ratio: var(--field-aspect);
   width: min(100%, calc((100dvh - var(--header-h) - 80px) * var(--field-aspect)));
   height: auto;
   border-radius: var(--radius);

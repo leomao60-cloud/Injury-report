@@ -1,7 +1,7 @@
 import type { ReactNode, SVGProps } from 'react';
 import { drawnPath, type FieldStyle, type Play } from '../model';
 import { Field } from './Field';
-import { DEFAULT_WINDOW, viewBoxFor, type ViewWindow } from './geometry';
+import { DEFAULT_WINDOW, playView, type ViewWindow } from './geometry';
 import { PlayLineView } from './PlayLineView';
 import { PlayerMarker } from './PlayerMarker';
 
@@ -37,7 +37,8 @@ export function PlayDiagram({
   svgProps,
   children,
 }: PlayDiagramProps) {
-  const vb = viewBoxFor(window);
+  // The window grows to fit deep players (punters, returners); the width follows the level's field.
+  const { window: win, vb } = playView(play, window);
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -49,7 +50,7 @@ export function PlayDiagram({
       {...svgProps}
     >
       {title && <title>{title}</title>}
-      <Field level={play.level} style={style} window={window} numbers={numbers} />
+      <Field level={play.level} style={style} window={win} numbers={numbers} />
       <g>
         {play.lines.map((line) => (
           <PlayLineView

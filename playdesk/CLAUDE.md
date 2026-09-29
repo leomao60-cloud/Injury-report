@@ -31,9 +31,10 @@ Finish every change by running typecheck, test and lint.
 
 ```
 src/
-  model/     pure TypeScript: types, field geometry, formations, play operations, examples. No React.
+  model/     pure TypeScript: types, field specs, formations, defenses, play operations, templates. No React.
   render/    pure SVG components: Field, PlayerMarker, PlayLineView, PlayDiagram
   store/     Zustand stores: playStore (play + undo history), editorStore (tool, selection, draft)
+  formations/ the Formations library screen (template browser)
   editor/    the editor screen: FieldEditor (pointer input), ToolRail, SidePanel, drawing logic, shortcuts
   library/   IndexedDB library, search, backup + .playdesk file import/export, validation, autosave, team branding
   sheets/    call sheets and wristbands: page layout math, numbering, print preview
@@ -53,17 +54,23 @@ All play coordinates are **yards**. `x` is distance from the left sideline (0 to
 (`svg y = -y`) through the viewBox, so nothing is converted to pixels.
 
 ```ts
-type Level = 'hs' | 'college' | 'nfl';
+type Level = 'hs' | 'college' | 'nfl' | 'cfl' | 'flag';   // FIELD_SPECS: width, hashes, game
+type GameType = 'eleven' | 'twelve' | 'flag5';            // players a side: 11, 12, 5
 type FieldStyle = 'turf' | 'whiteboard';
 type BallOn = 'left' | 'middle' | 'right';
 interface Player { id; side: 'offense' | 'defense'; label (≤3 chars); shape: 'circle' | 'square' | 'letter'; x; y; color? }
 interface PlayLine { id; playerId; type: 'route' | 'block' | 'motion'; points: Point[] /* start excluded */; color?; curved? }
-interface Play { id; name; level; ballOn; ballX; formation; showDefense; defense?: '43-cover2' | '34-cover3' | '425-cover1'; players; lines }
+interface Play { id; name; level; ballOn; ballX; formation /* FORMATIONS id or 'custom' */; showDefense; defense?: DefenseId; players; lines }
 ```
 
 A line's start is derived with `lineStart()`: routes and blocks start where the player's motion ends.
 Renderers and exporters draw `drawnPath()`, which smooths curved lines into a polyline.
-Hash widths: HS 53′4″, college 40′, NFL 18′6″.
+Hash widths: HS 53′4″, college 40′, NFL 18′6″; the 12-man (Canadian) field is 65 yards wide with hashes 24 yards in;
+the 5v5 flag field is 30 yards wide with no hashes. Never assume 53⅓ yards: use `fieldWidth(level)`.
+All formations of one game share the same player ids, so switching formations keeps lines attached;
+switching game (`setLevel` across games) resets the offense to that game's default formation.
+`src/model/templates.ts` holds the Formations library (personnel, scout, pass, run, special teams, 12-man, flag);
+it is excluded from Prettier so each route stays on one line.
 
 ## Rules
 
