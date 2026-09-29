@@ -1,4 +1,4 @@
-import { FIELD_WIDTH, type Point } from '../model';
+import { FIELD_WIDTH, drawnPath, fieldWidth, type Play, type Point } from '../model';
 
 /** Visible window, in yards from the LOS. */
 export interface ViewWindow {
@@ -17,10 +17,10 @@ export const THUMB_WINDOW: ViewWindow = { downfield: 16, backfield: 8, margin: 0
 export const SHEET_WINDOW: ViewWindow = { downfield: 16, backfield: 8, margin: 0.5 };
 
 /** The field is drawn in yard units: svg x = x, svg y = -y (downfield is up). */
-export function viewBoxFor(w: ViewWindow = DEFAULT_WINDOW) {
+export function viewBoxFor(w: ViewWindow = DEFAULT_WINDOW, fieldW: number = FIELD_WIDTH) {
   const x = -w.margin;
   const y = -w.downfield;
-  const width = FIELD_WIDTH + 2 * w.margin;
+  const width = fieldW + 2 * w.margin;
   const height = w.downfield + w.backfield;
   return { x, y, width, height, attr: `${x} ${y} ${width} ${height}` };
 }
@@ -29,8 +29,41 @@ export function toSvg(p: Point): { x: number; y: number } {
   return { x: p.x, y: -p.y };
 }
 
-/** Yard line (on a real field) of the line of scrimmage, used for yard labels. */
+/** Yard line (on a real American field) of the line of scrimmage, used for yard labels. */
 export const LOS_YARD_LINE = 33;
+
+/**
+ * Grow a window so everything in the play is visible (a punter 15 yards deep, kick returners
+ * 25 yards downfield). It only grows, in whole `step`s, so the view doesn't jump while dragging.
+ */
+export function fitWindow(play: Play, base: ViewWindow, step = 2): ViewWindow {
+  let maxY = 0;
+  let minY = 0;
+  for (const p of play.players) {
+    maxY = Math.max(maxY, p.y);
+    minY = Math.min(minY, p.y);
+  }
+  for (const l of play.lines) {
+    for (const p of drawnPath(play, l)) {
+      maxY = Math.max(maxY, p.y);
+      minY = Math.min(minY, p.y);
+    }
+  }
+  const pad = 1.5;
+  const grow = (need: number, have: number) =>
+    need <= have ? have : have + Math.ceil((need - have) / step) * step;
+  return {
+    ...base,
+    downfield: grow(maxY + pad, base.downfield),
+    backfield: grow(-minY + pad, base.backfield),
+  };
+}
+
+/** The window a play is drawn in, and its view box on that play's field. */
+export function playView(play: Play, base: ViewWindow, step = 2) {
+  const window = fitWindow(play, base, step);
+  return { window, vb: viewBoxFor(window, fieldWidth(play.level)) };
+}
 
 export function pathD(points: Point[]): string {
   return points

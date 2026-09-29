@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   CENTER_X,
-  FIELD_WIDTH,
   FORMATIONS,
   HASH_WIDTH,
   SIDELINE_MARGIN,
@@ -27,12 +26,37 @@ import {
   updatePlayer,
   type Level,
   type Play,
+  fieldWidth,
+  formationsFor,
+  gameFor,
+  getFormation,
+  LEVELS as ALL_LEVELS,
+  PLAYERS_PER_SIDE,
+  type GameType,
 } from './index';
 
 const LEVELS: Level[] = ['hs', 'college', 'nfl'];
 
 function allInBounds(play: Play) {
-  return play.players.every((p) => p.x >= SIDELINE_MARGIN && p.x <= FIELD_WIDTH - SIDELINE_MARGIN);
+  const width = fieldWidth(play.level);
+  return play.players.every((p) => p.x >= SIDELINE_MARGIN && p.x <= width - SIDELINE_MARGIN);
+}
+
+/** Levels a formation can be used on. */
+function levelsFor(game: GameType): Level[] {
+  return ALL_LEVELS.filter((l) => gameFor(l) === game);
+}
+
+/** Where the corner should be: over the widest receiver, or 10 yards outside when there is none. */
+function expectedCorner(play: Play, side: -1 | 1) {
+  const b = play.ballX;
+  const wide = play.level === 'flag' ? 4 : 6;
+  const xs = play.players
+    .filter((p) => p.side === 'offense' && (side < 0 ? p.x < b - 0.25 : p.x > b + 0.25))
+    .map((p) => p.x);
+  const widest = side < 0 ? Math.min(...xs, b) : Math.max(...xs, b);
+  const clampTo = (x: number) => Math.min(fieldWidth(play.level) - 1, Math.max(1, x));
+  return clampTo(Math.abs(widest - b) > wide ? widest : b + side * (wide + 4));
 }
 
 describe('field geometry', () => {
@@ -73,21 +97,34 @@ describe('createPlay', () => {
 });
 
 describe('formations', () => {
-  it.each(FORMATIONS.map((f) => [f.name, f.id] as const))(
-    '%s has 11 players and exactly 7 on the line of scrimmage',
-    (_name, id) => {
-      const play = createPlay({ formation: id });
+  it.each(FORMATIONS.map((f) => [f.name, f.game, f.id] as const))(
+    '%s (%s) has the right number of players, 7 on the line in tackle football',
+    (_name, game, id) => {
+      const play = createPlay({ formation: id, level: levelsFor(game)[0] });
       const offense = play.players.filter((p) => p.side === 'offense');
-      expect(offense).toHaveLength(11);
-      expect(offense.filter(isOnLine)).toHaveLength(7);
-      expect(new Set(offense.map((p) => p.id)).size).toBe(11);
+      const n = PLAYERS_PER_SIDE[game];
+      expect(offense).toHaveLength(n);
+      expect(new Set(offense.map((p) => p.id)).size).toBe(n);
+      if (game !== 'flag5') expect(offense.filter(isOnLine)).toHaveLength(7);
+      expect(offense.filter((p) => p.shape === 'square')).toHaveLength(1); // one center
     },
   );
 
-  it.each(FORMATIONS.map((f) => [f.name, f.id] as const))(
-    '%s stays inside the sidelines on every hash at every level',
-    (_name, id) => {
-      for (const level of LEVELS) {
+  it('11-man formations all use the same players, so switching keeps lines attached', () => {
+    const ids = (id: string) =>
+      getFormation(id)
+        .spots.map((s) => s.id)
+        .sort()
+        .join();
+    for (const f of formationsFor('eleven')) expect(ids(f.id)).toBe(ids('doubles'));
+    for (const f of formationsFor('twelve')) expect(ids(f.id)).toBe(ids('cfl-spread'));
+    for (const f of formationsFor('flag5')) expect(ids(f.id)).toBe(ids('flag-2x1'));
+  });
+
+  it.each(FORMATIONS.map((f) => [f.name, f.game, f.id] as const))(
+    '%s (%s) stays inside the sidelines on every hash at every level',
+    (_name, game, id) => {
+      for (const level of levelsFor(game)) {
         for (const ballOn of ['left', 'middle', 'right'] as const) {
           expect(allInBounds(createPlay({ formation: id, level, ballOn }))).toBe(true);
         }
@@ -268,12 +305,11 @@ describe('placeDefense', () => {
   it.each(FORMATIONS.map((f) => f.id))(
     'lines the corners up over the widest receivers (%s)',
     (id) => {
-      const play = placeDefense(createPlay({ formation: id }));
-      const offense = play.players.filter((p) => p.side === 'offense');
-      const widestL = Math.min(...offense.map((p) => p.x));
-      const widestR = Math.max(...offense.map((p) => p.x));
-      expect(getPlayer(play, 'cb-l')!.x).toBeCloseTo(widestL, 3);
-      expect(getPlayer(play, 'cb-r')!.x).toBeCloseTo(widestR, 3);
+      const f = getFormation(id);
+      if (f.game === 'flag5') return; // flag defenses have no corners; covered in editing.test
+      const play = placeDefense(createPlay({ formation: id, level: levelsFor(f.game)[0] }));
+      expect(getPlayer(play, 'cb-l')!.x).toBeCloseTo(expectedCorner(play, -1), 3);
+      expect(getPlayer(play, 'cb-r')!.x).toBeCloseTo(expectedCorner(play, 1), 3);
     },
   );
 

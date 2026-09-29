@@ -14,7 +14,11 @@ import {
   removePlayer,
   setShowDefense,
   smoothPath,
-  FORMATIONS,
+  LEVELS,
+  PLAYERS_PER_SIDE,
+  fieldWidth,
+  formationsFor,
+  gameFor,
 } from './index';
 
 describe('adding and removing players', () => {
@@ -110,21 +114,34 @@ describe('curved lines', () => {
 });
 
 describe('defensive fronts', () => {
-  it.each(DEFENSES.map((d) => d.id))(
-    '%s puts 11 defenders on the field with unique ids',
-    (front) => {
-      for (const f of FORMATIONS) {
-        const play = placeDefense(createPlay({ formation: f.id }), front);
+  it.each(DEFENSES.map((d) => [d.id, d.game] as const))(
+    '%s puts a full defense on the field with unique ids',
+    (front, game) => {
+      const level = LEVELS.find((l) => gameFor(l) === game)!;
+      for (const f of formationsFor(game)) {
+        const play = placeDefense(createPlay({ formation: f.id, level }), front);
+        expect(play.defense).toBe(front);
         const d = play.players.filter((p) => p.side === 'defense');
-        expect(d).toHaveLength(11);
-        expect(new Set(d.map((p) => p.id)).size).toBe(11);
+        expect(d).toHaveLength(PLAYERS_PER_SIDE[game]);
+        expect(new Set(d.map((p) => p.id)).size).toBe(d.length);
         expect(d.every((p) => p.y > 0)).toBe(true);
-        const offense = play.players.filter((p) => p.side === 'offense');
-        expect(getPlayer(play, 'cb-l')!.x).toBeCloseTo(Math.min(...offense.map((p) => p.x)), 3);
-        expect(getPlayer(play, 'cb-r')!.x).toBeCloseTo(Math.max(...offense.map((p) => p.x)), 3);
+        const w = fieldWidth(level);
+        expect(d.every((p) => p.x >= 1 && p.x <= w - 1)).toBe(true);
       }
     },
   );
+
+  it('flag rushers start 7 yards off the ball', () => {
+    for (const front of ['flag-zone', 'flag-man'] as const) {
+      const play = placeDefense(createPlay({ level: 'flag' }), front);
+      expect(getPlayer(play, 'r')!.y).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  it('a front from another game is swapped for that game’s default', () => {
+    expect(placeDefense(createPlay({ level: 'flag' }), '43-cover2').defense).toBe('flag-zone');
+    expect(placeDefense(createPlay({ level: 'cfl' }), '43-cover2').defense).toBe('cfl-43');
+  });
 
   it('remembers the front when the defense is hidden and shown again', () => {
     let play = placeDefense(createPlay(), '34-cover3');

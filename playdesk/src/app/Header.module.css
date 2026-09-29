@@ -21,6 +21,12 @@
   text-decoration: none;
 }
 
+.navWrap {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
 .nav {
   display: flex;
   gap: 4px;
@@ -30,6 +36,7 @@
 }
 .nav a {
   display: block;
+  white-space: nowrap;
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-2);
@@ -43,6 +50,16 @@
 .nav a[aria-current='page'] {
   background: var(--accent-soft);
   color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .brandText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
 }
 
 @media (max-width: 720px) {

@@ -3,6 +3,7 @@ import styles from './Header.module.css';
 
 const NAV: { route: Route; label: string }[] = [
   { route: 'editor', label: 'Editor' },
+  { route: 'formations', label: 'Formations' },
   { route: 'library', label: 'Library' },
   { route: 'sheets', label: 'Sheets' },
   { route: 'team', label: 'Team' },
@@ -20,9 +21,9 @@ export function Header({ route }: { route: Route }) {
         }}
       >
         <img src="/favicon.svg" alt="" width={24} height={24} />
-        Playdesk
+        <span className={styles.brandText}>Playdesk</span>
       </a>
-      <nav aria-label="Main">
+      <nav aria-label="Main" className={styles.navWrap}>
         <ul className={styles.nav}>
           {NAV.map((n) => (
             <li key={n.route}>

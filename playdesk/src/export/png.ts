@@ -10,7 +10,7 @@ export async function exportPlayPng(
   offenseFill?: string,
   width = 2400,
 ): Promise<void> {
-  const height = Math.round(width / aspect(DEFAULT_WINDOW));
+  const height = Math.round(width / aspect(play, DEFAULT_WINDOW));
   const markup = playSvgMarkup(play, style, DEFAULT_WINDOW, true, offenseFill).replace(
     '<svg ',
     `<svg width="${width}" height="${height}" `,

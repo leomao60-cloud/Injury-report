@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { FIELD_WIDTH, hashXs, type FieldStyle, type Level } from '../model';
-import { DEFAULT_WINDOW, LOS_YARD_LINE, viewBoxFor, type ViewWindow } from './geometry';
+import { FIELD_SPECS, hasHashes, hashXs, type FieldStyle, type Level } from '../model';
+import { DEFAULT_WINDOW, viewBoxFor, type ViewWindow } from './geometry';
 import { DIAGRAM_COLORS, DIAGRAM_FONT } from './theme';
 
 export interface FieldProps {
@@ -21,15 +21,21 @@ export const Field = memo(function Field({
   numbers = true,
 }: FieldProps) {
   const c = DIAGRAM_COLORS[style];
-  const vb = viewBoxFor(window);
+  const spec = FIELD_SPECS[level];
+  const FIELD_WIDTH = spec.width;
+  const vb = viewBoxFor(window, FIELD_WIDTH);
+  const hashes = hasHashes(level);
   const { left, right } = hashXs(level);
+  // Yard numbers need room between the sidelines and the hashes; small (flag) fields skip them.
+  const showNumbers = numbers && FIELD_WIDTH >= 50;
+  const fieldLength = spec.midfield * 2;
   const yards: number[] = [];
   for (let y = Math.ceil(-window.backfield); y <= Math.floor(window.downfield); y++) yards.push(y);
 
-  const fieldYard = (y: number) => LOS_YARD_LINE + y;
+  const fieldYard = (y: number) => spec.losYardLine + y;
   const label = (y: number) => {
     const yl = fieldYard(y);
-    return yl <= 50 ? yl : 100 - yl;
+    return yl <= spec.midfield ? yl : fieldLength - yl;
   };
 
   return (
@@ -64,14 +70,14 @@ export const Field = memo(function Field({
           <g key={y} stroke={c.fieldLine} strokeWidth={0.1}>
             <line x1={0} x2={TICK} y1={sy} y2={sy} />
             <line x1={FIELD_WIDTH - TICK} x2={FIELD_WIDTH} y1={sy} y2={sy} />
-            <line x1={left - TICK / 2} x2={left + TICK / 2} y1={sy} y2={sy} />
-            <line x1={right - TICK / 2} x2={right + TICK / 2} y1={sy} y2={sy} />
+            {hashes && <line x1={left - TICK / 2} x2={left + TICK / 2} y1={sy} y2={sy} />}
+            {hashes && <line x1={right - TICK / 2} x2={right + TICK / 2} y1={sy} y2={sy} />}
           </g>
         );
       })}
-      {numbers &&
+      {showNumbers &&
         yards
-          .filter((y) => fieldYard(y) % 10 === 0 && fieldYard(y) > 0 && fieldYard(y) < 100)
+          .filter((y) => fieldYard(y) % 10 === 0 && fieldYard(y) > 0 && fieldYard(y) < fieldLength)
           .map((y) => (
             <g
               key={`n${y}`}

@@ -84,10 +84,10 @@ export function Landing() {
             </p>
           </article>
           <article>
-            <h2>Draw like a whiteboard</h2>
+            <h2>A formation library to build on</h2>
             <p>
-              Real HS, college and NFL hashes. Routes, blocks, motion and curves in a few clicks.
-              Flip, undo, snap.
+              Personnel groupings, scout looks, pass and run concepts, special teams, 12-man and
+              flag, on real HS, college, NFL, Canadian and flag fields.
             </p>
           </article>
         </section>
