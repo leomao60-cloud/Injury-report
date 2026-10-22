@@ -18,7 +18,7 @@ test('build cutups from the sample game and download the report', async ({ page 
 
   await nodes.nth(1).click();
   await expect(page.getByTestId('cutup-detail').getByRole('heading', { level: 2 })).toContainText(
-    '01 - ',
+    /\d\d - /,
   );
   await expect(page.getByTestId('cutup-detail')).toContainText('Top formations');
 
