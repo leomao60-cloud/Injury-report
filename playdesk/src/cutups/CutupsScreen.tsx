@@ -21,6 +21,7 @@ import {
   type PlayKind,
 } from './fields';
 import { sampleCsv } from './sample';
+import { readXlsx, XlsxError } from './xlsx';
 import styles from './CutupsScreen.module.css';
 
 function Group({
@@ -52,6 +53,7 @@ export function CutupsScreen() {
     error,
     refresh,
     importCsv,
+    importRows,
     setMapping,
     removeBreakdown,
     saveTemplate,
@@ -89,12 +91,15 @@ export function CutupsScreen() {
       try {
         if (f.size > 10 * 1024 * 1024)
           throw new BreakdownError('That file is too large (over 10 MB).');
-        if (/\.(xlsx|xls)$/i.test(f.name)) {
+        const name = f.name.replace(/\.[^.]+$/, '');
+        if (/\.xls$/i.test(f.name)) {
           throw new BreakdownError(
-            'Excel files aren’t supported yet. In Excel or Hudl, save or export the breakdown as CSV.',
+            'Old .xls files aren’t supported. Save it as .xlsx or CSV and import that.',
           );
         }
-        const b = await importCsv(await f.text(), f.name.replace(/\.[^.]+$/, ''));
+        const b = /\.xlsx$/i.test(f.name)
+          ? await importRows(await readXlsx(await f.arrayBuffer()), name)
+          : await importCsv(await f.text(), name);
         setBreakdownId(b.id);
         setSelected('all');
         setMessage(
@@ -102,9 +107,9 @@ export function CutupsScreen() {
         );
       } catch (e) {
         setMessage(
-          e instanceof BreakdownError
+          e instanceof BreakdownError || e instanceof XlsxError
             ? e.message
-            : `${f.name} could not be read as a CSV breakdown.`,
+            : `${f.name} could not be read as a breakdown (CSV or Excel).`,
         );
       }
     }
@@ -165,7 +170,7 @@ export function CutupsScreen() {
               className="btn btn-sm btn-primary"
               onClick={() => fileRef.current?.click()}
             >
-              Import CSV…
+              Import CSV or Excel…
             </button>
             <button
               type="button"
@@ -530,7 +535,9 @@ export function CutupsScreen() {
           <div className={styles.empty}>
             <h2>Build organized cutups from your breakdown</h2>
             <ol>
-              <li>Export a game’s tagged plays from Hudl, Qwikcut or a spreadsheet as CSV.</li>
+              <li>
+                Export a game’s tagged plays from Hudl, Qwikcut or a spreadsheet as CSV or Excel.
+              </li>
               <li>Import it here and check the columns were matched.</li>
               <li>
                 Pick a template (or build one: field position → down & distance → formation…).

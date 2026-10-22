@@ -28,7 +28,11 @@ export class BreakdownError extends Error {}
 
 /** Turn CSV text into a breakdown. The first row must be the column headers. */
 export function breakdownFromCsv(text: string, name: string): Breakdown {
-  const rows = parseCsv(text);
+  return breakdownFromRows(parseCsv(text), name);
+}
+
+/** Turn rows (from CSV or an Excel sheet) into a breakdown. The first row must be the column headers. */
+export function breakdownFromRows(rows: string[][], name: string): Breakdown {
   if (rows.length < 2)
     throw new BreakdownError(
       'That file has no plays in it. The first row should be the column names.',

@@ -93,12 +93,21 @@ test('import a CSV with unusual column names and fix the matching', async ({ pag
   await expect(page.getByTestId('cutup-node').nth(1)).toContainText('2');
 });
 
-test('Excel files get a clear message', async ({ page }) => {
+test('import an Excel workbook', async ({ page }) => {
+  await page.goto('/app/cutups');
+  await page.getByTestId('breakdown-file').setInputFiles('e2e/fixtures/sample-breakdown.xlsx');
+  await expect(page.getByRole('status')).toContainText('Imported 9 plays');
+  await expect(page.getByRole('combobox', { name: 'Breakdown' })).toContainText('sample-breakdown');
+  // Offensive scout keeps only offense: 8 of the 9 plays (one is a punt).
+  await expect(page.getByTestId('cutup-node').first()).toContainText('8');
+});
+
+test('old .xls files get a clear message', async ({ page }) => {
   await page.goto('/app/cutups');
   await page.getByTestId('breakdown-file').setInputFiles({
-    name: 'game.xlsx',
-    mimeType: 'application/octet-stream',
-    buffer: Buffer.from('PK'),
+    name: 'game.xls',
+    mimeType: 'application/vnd.ms-excel',
+    buffer: Buffer.from('xx'),
   });
-  await expect(page.getByRole('status')).toContainText('save or export the breakdown as CSV');
+  await expect(page.getByRole('status')).toContainText('Save it as .xlsx or CSV');
 });

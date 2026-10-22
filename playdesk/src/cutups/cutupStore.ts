@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as db from '../library/db';
-import { breakdownFromCsv, type Breakdown } from './breakdown';
+import { breakdownFromCsv, breakdownFromRows, type Breakdown } from './breakdown';
 import { BUILT_IN_TEMPLATES, type CutupTemplate } from './cutups';
 import type { ColumnMapping } from './fields';
 
@@ -12,6 +12,7 @@ interface CutupState {
   error: string | null;
   refresh: () => Promise<void>;
   importCsv: (text: string, name: string) => Promise<Breakdown>;
+  importRows: (rows: string[][], name: string) => Promise<Breakdown>;
   saveBreakdown: (b: Breakdown) => Promise<void>;
   setMapping: (id: string, mapping: ColumnMapping) => Promise<void>;
   removeBreakdown: (id: string) => Promise<void>;
@@ -43,6 +44,11 @@ export const useCutupStore = create<CutupState>((set, get) => ({
       templates.sort((a, b) => a.name.localeCompare(b.name));
       set({ breakdowns, templates, loaded: true, error: null });
     });
+  },
+  importRows: async (rows, name) => {
+    const b = breakdownFromRows(rows, name);
+    await get().saveBreakdown(b);
+    return b;
   },
   importCsv: async (text, name) => {
     const b = breakdownFromCsv(text, name); // throws BreakdownError for bad files
