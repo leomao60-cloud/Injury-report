@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-for (const path of ['/', '/app', '/app/library', '/app/sheets']) {
+for (const path of [
+  '/',
+  '/app',
+  '/app/formations',
+  '/app/library',
+  '/app/sheets',
+  '/app/cutups',
+  '/app/team',
+]) {
   test(`${path} has no sideways scroll at 400px`, async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 800 });
     await page.goto(path);
@@ -13,7 +21,14 @@ for (const path of ['/', '/app', '/app/library', '/app/sheets']) {
 }
 
 test('every button has an accessible name', async ({ page }) => {
-  for (const path of ['/app', '/app/library', '/app/sheets']) {
+  for (const path of [
+    '/app',
+    '/app/formations',
+    '/app/library',
+    '/app/sheets',
+    '/app/cutups',
+    '/app/team',
+  ]) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
     const unnamed = await page.evaluate(() =>

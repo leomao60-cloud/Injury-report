@@ -1,6 +1,8 @@
 import type { Play } from '../model';
 import type { SheetDoc } from '../sheets/types';
 import type { Branding } from './branding';
+import type { Breakdown } from '../cutups/breakdown';
+import type { CutupTemplate } from '../cutups/cutups';
 
 export const DEFAULT_FOLDERS = ['Offense', 'Defense', 'Special teams'] as const;
 
@@ -23,4 +25,6 @@ export interface LibraryBackup {
   folders: string[];
   sheets: SheetDoc[];
   branding?: Branding;
+  breakdowns?: Breakdown[];
+  cutupTemplates?: CutupTemplate[];
 }

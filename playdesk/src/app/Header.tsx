@@ -6,6 +6,7 @@ const NAV: { route: Route; label: string }[] = [
   { route: 'formations', label: 'Formations' },
   { route: 'library', label: 'Library' },
   { route: 'sheets', label: 'Sheets' },
+  { route: 'cutups', label: 'Cutups' },
   { route: 'team', label: 'Team' },
 ];
 

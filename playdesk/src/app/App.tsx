@@ -5,6 +5,7 @@ import { useLibraryStore } from '../library/libraryStore';
 import { useAutosave } from '../library/useAutosave';
 import { SheetsScreen } from '../sheets/SheetsScreen';
 import { FormationsScreen } from '../formations/FormationsScreen';
+import { CutupsScreen } from '../cutups/CutupsScreen';
 import { TeamScreen } from '../library/TeamScreen';
 import { initOffice, startedFromAddin } from '../office/office';
 import { Landing } from './Landing';
@@ -35,6 +36,7 @@ function Workspace({ route }: { route: Exclude<Route, 'landing' | 'addin'> }) {
       {route === 'formations' && <FormationsScreen />}
       {route === 'library' && <LibraryScreen />}
       {route === 'sheets' && <SheetsScreen />}
+      {route === 'cutups' && <CutupsScreen />}
       {route === 'team' && <TeamScreen />}
     </div>
   );

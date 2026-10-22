@@ -10,6 +10,8 @@ import {
 } from '../model';
 import { DEFAULT_WRISTBAND, type SheetDoc } from '../sheets/types';
 import { sanitizeBranding } from './branding';
+import { sanitizeBreakdown, sanitizeTemplate, type Breakdown } from '../cutups/breakdown';
+import type { CutupTemplate } from '../cutups/cutups';
 import type { LibraryBackup, SavedPlay } from './types';
 
 /**
@@ -163,6 +165,12 @@ export function validateBackup(v: unknown): LibraryBackup {
         .filter(Boolean),
       sheets: arr(v.sheets ?? [], 1000).map(sheet),
       ...(v.branding === undefined ? {} : { branding: sanitizeBranding(v.branding) }),
+      breakdowns: arr(v.breakdowns ?? [], 200)
+        .map(sanitizeBreakdown)
+        .filter((b): b is Breakdown => b !== null),
+      cutupTemplates: arr(v.cutupTemplates ?? [], 200)
+        .map(sanitizeTemplate)
+        .filter((t): t is CutupTemplate => t !== null),
     };
   } catch (e) {
     if (e instanceof BackupError)

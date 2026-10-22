@@ -53,6 +53,21 @@ Microsoft only lets add-ins like this run inside Visio on the web, so Playdesk s
 `.vsdx` from the editor (one play), the Library (whole playbook) or Sheets (numbered plays), and open them in
 Visio. Each play is a page, and every player and route is an ordinary Visio shape.
 
+## Cutups from a Hudl or Qwikcut breakdown
+
+1. In Hudl or Qwikcut (or your spreadsheet), export the game's tagged plays as **CSV**. Excel files: use
+   _Save As → CSV_ first.
+2. In Playdesk open **Cutups → Import CSV…**. Columns such as `DN`, `DIST`, `YARD LN`, `HASH`, `PLAY TYPE`,
+   `GN/LS`, `OFF FORM`, `OFF PLAY`, `DEF FRONT`, `COVERAGE` are matched automatically; fix any others under
+   **Columns** (saved with the breakdown).
+3. Pick a template (Offensive scout, Formation tendencies, Third down, Red zone, Defensive scout) or build your
+   own folder order and filters and **Save template**, then reuse it on next week's export.
+4. **Download PowerPoint** for a cover, a title slide with tendencies for each folder (plus your library diagram
+   when a play or formation matches) and play lists, or **Folder list (.csv)** to rebuild the same cutups in
+   your video tool.
+
+Playdesk doesn't connect to Hudl or Qwikcut directly: that needs an API agreement with each company.
+
 ## Where data lives
 
 Plays and sheets are stored in the browser's IndexedDB on this device. The play open in the editor is also autosaved
