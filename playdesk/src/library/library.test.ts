@@ -2,6 +2,9 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPlay } from '../model';
 import * as db from './db';
+import { breakdownFromCsv } from '../cutups/breakdown';
+import { BUILT_IN_TEMPLATES } from '../cutups/cutups';
+import { sampleCsv } from '../cutups/sample';
 import { filterPlays, parseTags } from './search';
 import type { SavedPlay } from './types';
 import { BackupError, validateBackup } from './validate';
@@ -130,5 +133,23 @@ describe('IndexedDB library', () => {
     expect(result.plays).toBe(10);
     expect(await db.listPlays()).toHaveLength(10);
     expect(await db.getFolders()).toContain('Red zone');
+  });
+
+  it('backs up imported breakdowns and cutup templates', async () => {
+    const b = breakdownFromCsv(sampleCsv(), 'Week 1');
+    await db.putBreakdown(b);
+    await db.putCutupTemplate({
+      ...BUILT_IN_TEMPLATES[0]!,
+      id: 'mine',
+      name: 'Mine',
+      builtIn: undefined,
+    });
+    const backup = JSON.parse(JSON.stringify(await db.exportBackup()));
+    await db.clearAll();
+    await db.importBackup(backup);
+    const [restored] = await db.listBreakdowns();
+    expect(restored!.data).toEqual(b.data);
+    expect(restored!.mapping).toEqual(b.mapping);
+    expect((await db.listCutupTemplates()).map((t) => t.name)).toEqual(['Mine']);
   });
 });

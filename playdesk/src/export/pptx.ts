@@ -24,7 +24,7 @@ import { diagramShapes, type Shape } from './shapes';
 type Slide = PptxGenJS.Slide;
 
 /** Add one play as native PowerPoint shapes, so coaches can edit it in PowerPoint. */
-function addDiagram(
+export function addDiagram(
   pptx: PptxGenJS,
   slide: Slide,
   play: Play,
@@ -103,7 +103,7 @@ function addShape(pptx: PptxGenJS, slide: Slide, s: Shape) {
   }
 }
 
-function newDeck(orientation: 'landscape' | 'portrait' | 'wide', branding: Branding) {
+export function newDeck(orientation: 'landscape' | 'portrait' | 'wide', branding: Branding) {
   const pptx = new PptxGenJS();
   if (orientation === 'wide') {
     pptx.layout = 'LAYOUT_WIDE';
@@ -121,7 +121,7 @@ function newDeck(orientation: 'landscape' | 'portrait' | 'wide', branding: Brand
   return pptx;
 }
 
-async function save(pptx: PptxGenJS, name: string) {
+export async function save(pptx: PptxGenJS, name: string) {
   const blob = (await pptx.write({ outputType: 'blob' })) as Blob;
   downloadBlob(blob, safeFilename(name, 'pptx'));
 }

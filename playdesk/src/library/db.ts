@@ -4,22 +4,33 @@ import type { SheetDoc } from '../sheets/types';
 import { sanitizeBranding, type Branding } from './branding';
 import { DEFAULT_FOLDERS, type LibraryBackup, type SavedPlay } from './types';
 import { validateBackup } from './validate';
+import type { Breakdown } from '../cutups/breakdown';
+import type { CutupTemplate } from '../cutups/cutups';
 
 interface PlaydeskDB extends DBSchema {
   plays: { key: string; value: SavedPlay };
   sheets: { key: string; value: SheetDoc };
   meta: { key: string; value: unknown };
+  breakdowns: { key: string; value: Breakdown };
+  cutupTemplates: { key: string; value: CutupTemplate };
 }
 
 const DB_NAME = 'playdesk';
 let dbPromise: Promise<IDBPDatabase<PlaydeskDB>> | null = null;
 
 function db() {
-  dbPromise ??= openDB<PlaydeskDB>(DB_NAME, 1, {
-    upgrade(d) {
-      d.createObjectStore('plays', { keyPath: 'id' });
-      d.createObjectStore('sheets', { keyPath: 'id' });
-      d.createObjectStore('meta');
+  dbPromise ??= openDB<PlaydeskDB>(DB_NAME, 2, {
+    upgrade(d, oldVersion) {
+      if (oldVersion < 1) {
+        d.createObjectStore('plays', { keyPath: 'id' });
+        d.createObjectStore('sheets', { keyPath: 'id' });
+        d.createObjectStore('meta');
+      }
+      if (oldVersion < 2) {
+        // Version 2: Cutups (imported breakdowns and saved cutup templates).
+        d.createObjectStore('breakdowns', { keyPath: 'id' });
+        d.createObjectStore('cutupTemplates', { keyPath: 'id' });
+      }
     },
   });
   return dbPromise;
@@ -64,6 +75,25 @@ export async function setFolders(folders: string[]) {
   await setMeta('folders', folders);
 }
 
+export async function listBreakdowns(): Promise<Breakdown[]> {
+  return (await db()).getAll('breakdowns');
+}
+export async function putBreakdown(b: Breakdown) {
+  await (await db()).put('breakdowns', b);
+}
+export async function deleteBreakdown(id: string) {
+  await (await db()).delete('breakdowns', id);
+}
+export async function listCutupTemplates(): Promise<CutupTemplate[]> {
+  return (await db()).getAll('cutupTemplates');
+}
+export async function putCutupTemplate(t: CutupTemplate) {
+  await (await db()).put('cutupTemplates', t);
+}
+export async function deleteCutupTemplate(id: string) {
+  await (await db()).delete('cutupTemplates', id);
+}
+
 export async function getBranding(): Promise<Branding> {
   return sanitizeBranding(await getMeta('branding'));
 }
@@ -103,6 +133,8 @@ export async function exportBackup(): Promise<LibraryBackup> {
     folders: await getFolders(),
     sheets: await listSheets(),
     branding: await getBranding(),
+    breakdowns: await listBreakdowns(),
+    cutupTemplates: await listCutupTemplates(),
   };
 }
 
@@ -110,8 +142,13 @@ export async function exportBackup(): Promise<LibraryBackup> {
 export async function importBackup(raw: unknown): Promise<{ plays: number; sheets: number }> {
   const backup = validateBackup(raw);
   const d = await db();
-  const tx = d.transaction(['plays', 'sheets', 'meta'], 'readwrite');
+  const tx = d.transaction(
+    ['plays', 'sheets', 'meta', 'breakdowns', 'cutupTemplates'],
+    'readwrite',
+  );
   for (const p of backup.plays) await tx.objectStore('plays').put(p);
+  for (const b of backup.breakdowns ?? []) await tx.objectStore('breakdowns').put(b);
+  for (const t of backup.cutupTemplates ?? []) await tx.objectStore('cutupTemplates').put(t);
   for (const s of backup.sheets) await tx.objectStore('sheets').put(s);
   const folders = ((await tx.objectStore('meta').get('folders')) as string[] | undefined) ?? [
     ...DEFAULT_FOLDERS,
@@ -128,5 +165,11 @@ export async function importBackup(raw: unknown): Promise<{ plays: number; sheet
 
 export async function clearAll() {
   const d = await db();
-  await Promise.all([d.clear('plays'), d.clear('sheets'), d.clear('meta')]);
+  await Promise.all([
+    d.clear('plays'),
+    d.clear('sheets'),
+    d.clear('meta'),
+    d.clear('breakdowns'),
+    d.clear('cutupTemplates'),
+  ]);
 }

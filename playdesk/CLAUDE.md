@@ -35,6 +35,8 @@ src/
   render/    pure SVG components: Field, PlayerMarker, PlayLineView, PlayDiagram
   store/     Zustand stores: playStore (play + undo history), editorStore (tool, selection, draft)
   formations/ the Formations library screen (template browser)
+  cutups/    Cutups: CSV breakdown import (Hudl/Qwikcut/spreadsheet), column matching, cutup templates,
+             folder tree + tendencies, PowerPoint cutup report and folder-list CSV
   editor/    the editor screen: FieldEditor (pointer input), ToolRail, SidePanel, drawing logic, shortcuts
   library/   IndexedDB library, search, backup + .playdesk file import/export, validation, autosave, team branding
   sheets/    call sheets and wristbands: page layout math, numbering, print preview
@@ -78,7 +80,10 @@ it is excluded from Prettier so each route stays on one line.
   `usePlayStore.apply(fn)`, so it is undoable. Drags use `beginDrag / dragTo / endDrag` = one undo step.
 - `src/render` components are pure and use fixed colors (`render/theme.ts`), never CSS variables,
   so drawings look the same on screen, in print and in exports.
-- Treat imported backup files as untrusted: everything goes through `library/validate.ts`.
+- Treat imported files as untrusted: backups go through `library/validate.ts`, breakdowns and cutup
+  templates through `cutups/breakdown.ts` (sanitizeBreakdown / sanitizeTemplate).
+- IndexedDB is at version 2 (adds `breakdowns` and `cutupTemplates`); add a new `oldVersion` branch
+  in `library/db.ts` for any future store, never change an existing one.
 - Layout must work at 400px wide (one column under 720px) and in dark mode.
   Every control needs a visible focus state and an accessible name.
 - Ask before adding a new npm dependency.
