@@ -55,9 +55,9 @@ Visio. Each play is a page, and every player and route is an ordinary Visio shap
 
 ## Cutups from a Hudl or Qwikcut breakdown
 
-1. In Hudl or Qwikcut (or your spreadsheet), export the game's tagged plays as **CSV**. Excel files: use
-   _Save As → CSV_ first.
-2. In Playdesk open **Cutups → Import CSV…**. Columns such as `DN`, `DIST`, `YARD LN`, `HASH`, `PLAY TYPE`,
+1. In Hudl or Qwikcut (or your spreadsheet), export the game's tagged plays as **CSV** or
+   **Excel (.xlsx)**. Older binary `.xls` files need _Save As → .xlsx_ (or CSV) first.
+2. In Playdesk open **Cutups → Import CSV or Excel…**. Columns such as `DN`, `DIST`, `YARD LN`, `HASH`, `PLAY TYPE`,
    `GN/LS`, `OFF FORM`, `OFF PLAY`, `DEF FRONT`, `COVERAGE` are matched automatically; fix any others under
    **Columns** (saved with the breakdown).
 3. Pick a template (Offensive scout, Formation tendencies, Third down, Red zone, Defensive scout) or build your

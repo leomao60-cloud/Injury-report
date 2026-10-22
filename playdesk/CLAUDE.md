@@ -35,7 +35,8 @@ src/
   render/    pure SVG components: Field, PlayerMarker, PlayLineView, PlayDiagram
   store/     Zustand stores: playStore (play + undo history), editorStore (tool, selection, draft)
   formations/ the Formations library screen (template browser)
-  cutups/    Cutups: CSV breakdown import (Hudl/Qwikcut/spreadsheet), column matching, cutup templates,
+  cutups/    Cutups: CSV and .xlsx breakdown import (xlsx.ts reads workbooks with jszip, no spreadsheet
+             library), column matching, cutup templates,
              folder tree + tendencies, PowerPoint cutup report and folder-list CSV
   editor/    the editor screen: FieldEditor (pointer input), ToolRail, SidePanel, drawing logic, shortcuts
   library/   IndexedDB library, search, backup + .playdesk file import/export, validation, autosave, team branding
